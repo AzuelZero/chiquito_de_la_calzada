@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#2F0734" />
   <title>Chiquito de la Calzada — calculadora de fechas</title>
-  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/logo.png" type="image/png" />
   <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -14,7 +14,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <img class="mark" src="assets/logo.svg" alt="Perro fumando un cigarrillo" width="48" height="48" />
+        <img class="mark" src="assets/logo.png" alt="Perro con gafas de sol fumando un cigarrillo" width="64" height="64" />
         <div class="brand-text">
           <h1>Chiquito de la Calzada</h1>
           <p>Calculadora de fechas · diferencias, sumas y restas</p>
@@ -35,119 +35,176 @@
     </header>
 
     <main>
-      <p class="sr-only" id="diff-announce" role="status" aria-live="polite"></p>
+      <div class="tabs" role="tablist" aria-label="Herramientas de cálculo">
+        <button class="tab is-active" id="tab-diff" type="button" role="tab" aria-selected="true" aria-controls="panel-diff" tabindex="0">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M18 5v14M6 9h12M6 15h12" /></svg>
+          Diferencia
+        </button>
+        <button class="tab" id="tab-shift" type="button" role="tab" aria-selected="false" aria-controls="panel-shift" tabindex="-1">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v6M9 8h6M5 17h14" /></svg>
+          Sumar o restar
+        </button>
+      </div>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Diferencia entre fechas</h2>
-        </div>
+      <div class="tab-panel" id="panel-diff" role="tabpanel" aria-labelledby="tab-diff" tabindex="-1">
+        <p class="sr-only" id="diff-announce" role="status" aria-live="polite"></p>
 
-        <div class="date-row">
-          <label class="field">
-            <span>Fecha 1</span>
-            <div class="date-wrap">
-              <input type="datetime-local" id="date1" step="60" />
-              <button type="button" class="ghost" id="now1" title="Usar la fecha y hora actuales">Ahora</button>
-            </div>
-          </label>
-
-          <button type="button" class="swap" id="swap" title="Intercambiar fechas" aria-label="Intercambiar fechas">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5" />
-            </svg>
-          </button>
-
-          <label class="field">
-            <span>Fecha 2</span>
-            <div class="date-wrap">
-              <input type="datetime-local" id="date2" step="60" />
-              <button type="button" class="ghost" id="now2" title="Usar la fecha y hora actuales">Ahora</button>
-            </div>
-          </label>
-        </div>
-
-        <div class="actions">
-          <label class="check" title="Suma un día al resultado: del 1 al 31 cuentan 31 días.">
-            <input type="checkbox" id="inclusive" />
-            <span>Contar ambos extremos</span>
-          </label>
-          <button type="button" class="primary" id="calc">Calcular diferencia</button>
-        </div>
-
-        <p class="notice" id="diff-warning" role="status" hidden></p>
-        <p class="error" id="diff-error" role="alert" hidden></p>
-      </section>
-
-      <section class="result-card" id="diff-result" hidden>
-        <div class="hero">
-          <div class="hero-label">Días naturales</div>
-          <div class="hero-line">
-            <span class="hero-value" id="natural-days">0</span>
-            <span class="hero-unit" id="natural-unit">días</span>
+        <section class="panel inputs-panel">
+          <div class="panel-head">
+            <h2>Diferencia entre fechas</h2>
+            <span class="panel-note" id="panel-zone">Zona activa</span>
           </div>
-          <div class="hero-sub" id="natural-sub"></div>
-        </div>
 
-        <div class="result-side">
-          <div class="relation">
-            <span class="dot" aria-hidden="true"></span>
-            <span id="relation-text"></span>
+          <div class="date-row">
+            <label class="field">
+              <span>Fecha 1</span>
+              <div class="date-wrap">
+                <input type="datetime-local" id="date1" step="60" />
+                <button type="button" class="ghost" id="now1" title="Usar la fecha y hora actuales">Ahora</button>
+              </div>
+            </label>
+
+            <button type="button" class="swap" id="swap" title="Intercambiar fechas" aria-label="Intercambiar fechas">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5" />
+              </svg>
+            </button>
+
+            <label class="field">
+              <span>Fecha 2</span>
+              <div class="date-wrap">
+                <input type="datetime-local" id="date2" step="60" />
+                <button type="button" class="ghost" id="now2" title="Usar la fecha y hora actuales">Ahora</button>
+              </div>
+            </label>
           </div>
-          <div class="breakdown" id="breakdown"></div>
-          <div class="zone-ref" id="result-zone"></div>
-        </div>
-      </section>
 
-      <section class="panel totals-panel" id="totals-panel" hidden>
-        <div class="totals-head">
-          <h3>La misma diferencia en</h3>
-        </div>
-        <div class="totals" id="totals"></div>
-      </section>
+          <div class="actions">
+            <label class="check" title="Suma un día al resultado: del 1 al 31 cuentan 31 días.">
+              <input type="checkbox" id="inclusive" aria-describedby="inclusive-hint" />
+              <span>Contar ambos extremos</span>
+              <span class="check-note" id="inclusive-hint">del 1 al 31 cuentan 31 días</span>
+            </label>
+            <button type="button" class="primary" id="calc">Calcular diferencia</button>
+          </div>
 
-      <p class="sr-only" id="shift-announce" role="status" aria-live="polite"></p>
+          <p class="notice" id="diff-warning" role="status" hidden></p>
+          <p class="error" id="diff-error" role="alert" hidden></p>
+        </section>
 
-      <section class="panel shift-panel">
-        <div class="panel-head">
-          <h2>Sumar o restar a una fecha</h2>
-        </div>
+        <section class="result-card" id="diff-result" hidden>
+          <div class="result-head">
+            <div>
+              <h3>Días naturales</h3>
+              <p class="head-hint">días de calendario entre ambas fechas, sin contar las horas</p>
+            </div>
+            <div class="relation">
+              <span class="ember" aria-hidden="true"></span>
+              <span id="relation-text"></span>
+            </div>
+          </div>
 
-        <div class="shift-row">
-          <label class="field">
-            <span>Fecha base</span>
-            <input type="datetime-local" id="shift-date" step="60" />
-          </label>
-          <label class="field">
-            <span>Duración</span>
-            <input type="text" id="shift-duration" value="1 mes" spellcheck="false" autocomplete="off" />
-          </label>
-        </div>
+          <div class="span">
+            <div class="span-end">
+              <span class="span-label">Desde</span>
+              <span class="span-date" id="span-date1"></span>
+              <span class="span-meta" id="span-meta1"></span>
+            </div>
 
-        <div class="hint">
-          Ejemplos: <code>1a 2mes</code> <code>3 semanas</code> <code>45min</code> <code>-2d</code>
-        </div>
+            <div class="span-track">
+              <span class="track-line" aria-hidden="true"></span>
+              <span class="span-value">
+                <span class="span-number" id="natural-days">0</span>
+                <span class="span-unit" id="natural-unit">días</span>
+              </span>
+              <span class="track-line track-line-end" aria-hidden="true"></span>
+            </div>
 
-        <div class="actions">
-          <button type="button" class="primary" id="add">Sumar</button>
-          <button type="button" class="secondary" id="sub">Restar</button>
-        </div>
+            <div class="span-end span-end-last">
+              <span class="span-label">Hasta</span>
+              <span class="span-date" id="span-date2"></span>
+              <span class="span-meta" id="span-meta2"></span>
+            </div>
+          </div>
 
-        <p class="notice" id="shift-warning" role="status" hidden></p>
-        <p class="error" id="shift-error" role="alert" hidden></p>
+          <div class="result-foot">
+            <div class="breakdown-block">
+              <span class="micro-label">Desglose calendario</span>
+              <div class="breakdown" id="breakdown"></div>
+            </div>
+            <div class="result-actions">
+              <span class="zone-ref" id="result-zone"></span>
+              <button type="button" class="copy" id="copy-result">Copiar resultado</button>
+            </div>
+          </div>
+        </section>
 
-        <div class="shift-result" id="shift-result" hidden>
-          <div class="shift-result-label" id="shift-op"></div>
-          <div class="shift-result-value" id="shift-value"></div>
-          <div class="shift-result-sub" id="shift-sub"></div>
-        </div>
-      </section>
+        <section class="totals-panel" id="totals-panel" hidden>
+          <div class="totals-head">
+            <h3>La misma diferencia en</h3>
+            <p class="head-hint">tiempo real transcurrido, no días de calendario</p>
+          </div>
+          <div class="totals" id="totals"></div>
+          <button type="button" class="totals-toggle" id="totals-toggle" aria-expanded="false" hidden>Ver todas las unidades</button>
+        </section>
+      </div>
+
+      <div class="tab-panel" id="panel-shift" role="tabpanel" aria-labelledby="tab-shift" tabindex="-1" hidden>
+        <p class="sr-only" id="shift-announce" role="status" aria-live="polite"></p>
+
+        <section class="panel shift-panel">
+          <div class="panel-head">
+            <h2>Sumar o restar a una fecha</h2>
+            <span class="panel-note" id="duration-syntax">Sintaxis: 1a · 2mes · 3sem · 4d · 5h · 45min</span>
+          </div>
+
+          <div class="shift-row">
+            <label class="field">
+              <span>Fecha base</span>
+              <input type="datetime-local" id="shift-date" step="60" />
+            </label>
+            <label class="field">
+              <span>Duración</span>
+              <input type="text" id="shift-duration" value="1 mes" spellcheck="false" autocomplete="off" aria-describedby="duration-syntax" />
+            </label>
+          </div>
+
+          <div class="examples" id="shift-examples" aria-label="Duraciones de ejemplo">
+            <button type="button" class="example" data-duration="1 mes">1 mes</button>
+            <button type="button" class="example" data-duration="3 semanas">3 semanas</button>
+            <button type="button" class="example" data-duration="45 min">45 min</button>
+            <button type="button" class="example" data-duration="-2 días">−2 días</button>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="primary" id="add">Sumar</button>
+            <button type="button" class="secondary" id="sub">Restar</button>
+          </div>
+
+          <p class="notice" id="shift-warning" role="status" hidden></p>
+          <p class="error" id="shift-error" role="alert" hidden></p>
+
+          <p class="shift-empty" id="shift-empty">Elige una fecha y una duración. El resultado aparecerá aquí.</p>
+
+          <div class="shift-result" id="shift-result" hidden>
+            <div class="shift-result-label" id="shift-op"></div>
+            <div class="shift-result-value" id="shift-value"></div>
+            <div class="shift-result-sub" id="shift-sub"></div>
+            <div class="shift-result-actions">
+              <button type="button" class="copy" id="copy-shift">Copiar resultado</button>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <footer>
-      <span>Chiquito de la Calzada · Go + Wails</span>
+      <span>Chiquito de la Calzada — homenaje al maestro</span>
       <span id="footer-zone"></span>
     </footer>
   </div>
+
+  <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
 
   <script src="app.js"></script>
 </body>

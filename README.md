@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" width="120" alt="Perro fumando un cigarrillo, logo de Chiquito de la Calzada" />
+  <img src="assets/logo.png" width="120" alt="Perro con gafas de sol fumando un cigarrillo, logo de Chiquito de la Calzada" />
   <h1>Chiquito de la Calzada</h1>
   <p><strong>Calculadora de fechas</strong> · diferencias, sumas y restas · escritorio y CLI</p>
 </div>
@@ -29,7 +29,7 @@ conexión a internet.
 
 ## La aplicación de escritorio
 
-Pensada para Windows 10/11. Descarga `chiquito-de-la-calzada.exe` desde
+Pensada para Windows 10/11. Descarga `chiquito_de_la_calzada.exe` desde
 [Releases](https://github.com/AzuelZero/chiquito_de_la_calzada/releases) y ábrelo;
 no necesita instalación. WebView2 suele venir con Windows y, si falta, Windows lo
 ofrece al arrancar la aplicación.
@@ -40,6 +40,15 @@ ofrece al arrancar la aplicación.
 - Al abrir se calculan los últimos 30 días como ejemplo.
 - La fecha y la hora se interpretan en la zona elegida, no en la del navegador.
 - El botón «Ahora» usa la hora real de esa zona.
+- Al editar una fecha, el resultado se recalcula solo; si algo falla, el
+  resultado anterior no desaparece de la pantalla.
+- El panel de unidades muestra las 4 relevantes para la magnitud calculada;
+  «Ver todas las unidades» despliega las demás.
+- En «Sumar o restar», Enter repite la última operación usada y el resultado
+  también se puede copiar.
+- Al intercambiar las dos fechas… **¡JARL!** Si además dejas un clip propio
+  como `gui/frontend/dist/assets/jarl.mp3`, el grito suena (el fichero de
+  audio no se distribuye con el repositorio).
 - Los avisos de horario de verano aparecen bajo el formulario correspondiente:
   - **Hora inexistente** al adelantar el reloj: se indica cómo la interpreta Go
     (por ejemplo, `02:30` se convierte en `03:30`).
@@ -62,7 +71,7 @@ Ese cambio también afecta a la aritmética. Entre el 29 de marzo de 2026 a las
 no existe:
 
 ```text
-$ datecalc 2026-03-29T01:30 2026-03-29T04:30 --tz Europe/Madrid
+$ chiquito_de_la_calzada_cli 2026-03-29T01:30 2026-03-29T04:30 --tz Europe/Madrid
 Zona: Europe/Madrid (CET, UTC+01:00)
 
 Fecha 1: 29/03/2026 01:30:00 (domingo)
@@ -82,13 +91,16 @@ Go para la zona indicada.
 
 ## Línea de comandos
 
+El binario de la CLI se publica como `chiquito_de_la_calzada_cli.exe`. También
+puedes compilarlo con las instrucciones del final.
+
 ```text
-datecalc                                 Modo interactivo
-datecalc <fecha1>                        Diferencia con hoy
-datecalc <fecha1> <fecha2>               Diferencia entre dos fechas
-datecalc diff <fecha1> <fecha2>          Igual que arriba
-datecalc add <fecha> <duración>          Suma una duración a una fecha
-datecalc sub <fecha> <duración>          Resta una duración a una fecha
+chiquito_de_la_calzada_cli                        Modo interactivo
+chiquito_de_la_calzada_cli <fecha1>               Diferencia con hoy
+chiquito_de_la_calzada_cli <fecha1> <fecha2>      Diferencia entre fechas
+chiquito_de_la_calzada_cli diff <fecha1> <fecha2> Igual que arriba
+chiquito_de_la_calzada_cli add <fecha> <duración> Sumar una duración
+chiquito_de_la_calzada_cli sub <fecha> <duración> Restar una duración
 
 Opciones:
   -u, --utc         Interpretar las fechas en UTC
@@ -102,17 +114,17 @@ Opciones:
 
 ```sh
 # Diferencia entre dos fechas en Madrid
-datecalc 2026-01-01 2026-03-15 --tz Europe/Madrid
+chiquito_de_la_calzada_cli 2026-01-01 2026-03-15 --tz Europe/Madrid
 
 # La misma diferencia en JSON
-datecalc diff 2026-01-01 2026-03-15 --json
+chiquito_de_la_calzada_cli diff 2026-01-01 2026-03-15 --json
 
 # Sumar y restar duraciones
-datecalc add 2026-01-31 "1 mes"        # 28/02/2026
-datecalc sub "2026-03-15 18:00" 45min
+chiquito_de_la_calzada_cli add 2026-01-31 "1 mes"        # 28/02/2026
+chiquito_de_la_calzada_cli sub "2026-03-15 18:00" 45min
 
 # Modo interactivo
-datecalc
+chiquito_de_la_calzada_cli
 ```
 
 Salida de ejemplo:
@@ -157,10 +169,10 @@ git clone https://github.com/AzuelZero/chiquito_de_la_calzada.git
 cd chiquito_de_la_calzada
 
 # CLI
-go build -o datecalc.exe .
+go build -o chiquito_de_la_calzada_cli.exe .
 
 # Aplicación de escritorio
-go build -tags "gui desktop production" -ldflags "-H windowsgui -s -w" -o chiquito-de-la-calzada.exe ./gui
+go build -tags "gui desktop production" -ldflags "-H windowsgui -s -w" -o chiquito_de_la_calzada.exe ./gui
 ```
 
 El icono del ejecutable se enlaza desde `gui/rsrc.syso`. Si cambias el logo,
@@ -199,7 +211,8 @@ sin compilar Wails.
 
 ## Créditos
 
-- **Logo:** dibujado para este proyecto (SVG original).
+- **Logo:** fotografía propia. Las propuestas de dibujo anteriores viven en
+  `assets/propuestas/`.
 - **Fraunces:** tipografía de Undercase Type, bajo SIL Open Font License 1.1.
   La licencia está en
   [`gui/frontend/dist/assets/fonts/OFL.txt`](gui/frontend/dist/assets/fonts/OFL.txt).

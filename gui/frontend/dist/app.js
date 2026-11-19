@@ -13,6 +13,8 @@ let zoneText = "";
 let hasDiff = false;
 let hasShift = false;
 let lastOperation = "";
+let lastDiff = null;
+let lastShift = null;
 let ready = false;
 
 function api() {
@@ -74,8 +76,17 @@ function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function splitHuman(human) {
+  const match = human.match(/^(.*?) \(([^)]+)\)$/);
+  if (!match) {
+    return [human, ""];
+  }
+  return [match[1], capitalize(match[2])];
+}
+
 function hideDiffResult() {
   hasDiff = false;
+  lastDiff = null;
   $("diff-result").hidden = true;
   $("totals-panel").hidden = true;
   $("diff-announce").textContent = "";
@@ -84,6 +95,7 @@ function hideDiffResult() {
 function hideShiftResult() {
   hasShift = false;
   $("shift-result").hidden = true;
+  $("shift-empty").hidden = false;
   $("shift-announce").textContent = "";
 }
 
@@ -119,6 +131,18 @@ function buildBreakdown(breakdown) {
   }
 }
 
+// Unidades que merecen verse sin desplegar, según la magnitud del resultado.
+const primaryUnits = (days24) => {
+  if (days24 >= 730) return ["Años", "Meses", "Semanas", "Días de 24 h"];
+  if (days24 >= 61) return ["Meses", "Semanas", "Días de 24 h", "Horas"];
+  if (days24 >= 14) return ["Semanas", "Días de 24 h", "Horas", "Minutos"];
+  if (days24 >= 2) return ["Días de 24 h", "Horas", "Minutos", "Segundos"];
+  return ["Horas", "Minutos", "Segundos", "Milisegundos"];
+};
+
+let totalsExpanded = false;
+let lastPrimary = [];
+
 function renderTotals(result) {
   const rows = [
     ["Años", result.yearsTotal, false, "365,2425 días por año"],
@@ -134,9 +158,12 @@ function renderTotals(result) {
   const wrap = $("totals");
   wrap.replaceChildren();
 
+  lastPrimary = primaryUnits(Number(result.days24));
+
   for (const [label, value, integer, hint] of rows) {
     const row = document.createElement("div");
     row.className = "total";
+    row.dataset.label = label;
 
     const labelEl = document.createElement("div");
     labelEl.className = "total-label";
@@ -147,23 +174,50 @@ function renderTotals(result) {
 
     const valueEl = document.createElement("div");
     valueEl.className = "total-value";
-    valueEl.textContent = (integer ? nf0 : nf).format(Number(value));
+    const n = Number(value);
+    valueEl.textContent = Number.isFinite(n) ? (integer ? nf0 : nf).format(n) : "—";
 
     row.append(labelEl, valueEl);
     wrap.append(row);
   }
+  applyTotalsVisibility();
+}
+
+// Muestra las unidades principales o todas, según el desplegable.
+function applyTotalsVisibility() {
+  const wrap = $("totals");
+  const toggle = $("totals-toggle");
+  let anyHidden = false;
+  for (const row of wrap.children) {
+    const visible = totalsExpanded || lastPrimary.includes(row.dataset.label);
+    row.hidden = !visible;
+    if (!visible) anyHidden = true;
+  }
+  toggle.hidden = !anyHidden;
+  toggle.textContent = totalsExpanded ? "Ver solo las principales" : "Ver todas las unidades";
+  toggle.setAttribute("aria-expanded", String(totalsExpanded));
 }
 
 function renderWarning(id, message) {
   const el = $(id);
   el.textContent = message || "";
   el.hidden = !message;
+  el.classList.toggle("is-dst", /horario de (verano|invierno)/.test(message || ""));
 }
 
 function renderDiff(result) {
-  $("natural-days").textContent = nf.format(result.naturalDays);
+  lastDiff = result;
+  const daysText = nf.format(result.naturalDays);
+  $("natural-days").textContent = daysText;
+  $("natural-days").classList.toggle("is-long", daysText.replace(/\D/g, "").length > 6);
   $("natural-unit").textContent = result.naturalDays === 1 ? "día" : "días";
-  $("natural-sub").textContent = `${result.human1} → ${result.human2}`;
+
+  const [date1, meta1] = splitHuman(result.human1);
+  const [date2, meta2] = splitHuman(result.human2);
+  $("span-date1").textContent = date1;
+  $("span-meta1").textContent = meta1;
+  $("span-date2").textContent = date2;
+  $("span-meta2").textContent = meta2;
 
   let relation = "Las dos fechas son iguales";
   if (result.later === "date2") {
@@ -176,7 +230,7 @@ function renderDiff(result) {
   buildBreakdown(result.breakdown);
   renderTotals(result);
   renderWarning("diff-warning", result.warning);
-  $("result-zone").textContent = zoneText ? `Zona: ${zoneText}` : "";
+  $("result-zone").textContent = zoneText ? `Zona: ${$("zone-chip").textContent}` : "";
   $("diff-announce").textContent =
     `${result.naturalDays} ${result.naturalDays === 1 ? "día natural" : "días naturales"}. ` +
     `${relation}.`;
@@ -187,6 +241,7 @@ function renderDiff(result) {
 }
 
 function renderShift(result) {
+  lastShift = result;
   $("shift-op").textContent = `${capitalize(result.operation)} ${result.duration}`;
   $("shift-value").textContent = result.resultHuman;
   $("shift-sub").textContent = `Desde ${result.startHuman} · ${result.iso}`;
@@ -194,7 +249,203 @@ function renderShift(result) {
   $("shift-announce").textContent = `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`;
 
   hasShift = true;
+  $("shift-empty").hidden = true;
   reveal($("shift-result"));
+}
+
+function buildDiffText(result) {
+  const parts = [];
+  parts.push(
+    `${nf.format(result.naturalDays)} ${result.naturalDays === 1 ? "día natural" : "días naturales"}.`
+  );
+  if (result.later === "date2") {
+    parts.push("La fecha 2 es posterior a la fecha 1.");
+  } else if (result.later === "date1") {
+    parts.push("La fecha 1 es posterior a la fecha 2.");
+  } else {
+    parts.push("Las dos fechas son iguales.");
+  }
+  parts.push(`Desde ${result.human1}.`);
+  parts.push(`Hasta ${result.human2}.`);
+  const breakdown = [];
+  for (const [key, one, many] of [
+    ["years", "año", "años"],
+    ["months", "mes", "meses"],
+    ["days", "día", "días"],
+    ["hours", "hora", "horas"],
+    ["minutes", "minuto", "minutos"],
+    ["seconds", "segundo", "segundos"],
+  ]) {
+    const value = result.breakdown[key];
+    if (value > 0) {
+      breakdown.push(`${value} ${value === 1 ? one : many}`);
+    }
+  }
+  if (breakdown.length) {
+    parts.push(`Desglose: ${breakdown.join(", ")}.`);
+  }
+  if (zoneText) {
+    parts.push(`Zona: ${zoneText}.`);
+  }
+  return parts.join("\n");
+}
+
+function fallbackCopy(text) {
+  return new Promise((resolve, reject) => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.top = "-1000px";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    try {
+      if (document.execCommand("copy")) {
+        resolve();
+      } else {
+        reject(new Error("No se pudo copiar"));
+      }
+    } catch (err) {
+      reject(err);
+    } finally {
+      area.remove();
+    }
+  });
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // WebView2 puede denegar el portapapeles; probamos el método clásico.
+    }
+  }
+  return fallbackCopy(text);
+}
+
+async function copyResult() {
+  if (!lastDiff) return;
+  const button = $("copy-result");
+  try {
+    await copyText(buildDiffText(lastDiff));
+    button.textContent = "Copiado";
+    button.classList.add("is-copied");
+    $("copy-status").textContent = "Resultado copiado al portapapeles.";
+    setTimeout(() => {
+      button.textContent = "Copiar resultado";
+      button.classList.remove("is-copied");
+      $("copy-status").textContent = "";
+    }, 1800);
+  } catch {
+    button.textContent = "No se pudo copiar";
+    $("copy-status").textContent = "No se pudo copiar el resultado.";
+    setTimeout(() => {
+      button.textContent = "Copiar resultado";
+      $("copy-status").textContent = "";
+    }, 2200);
+  }
+}
+
+function buildShiftText(result) {
+  const parts = [
+    `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`,
+    `Desde ${result.startHuman}.`,
+    `ISO 8601: ${result.iso}.`,
+  ];
+  if (zoneText) {
+    parts.push(`Zona: ${zoneText}.`);
+  }
+  return parts.join("\n");
+}
+
+async function copyShiftResult() {
+  if (!lastShift) return;
+  const button = $("copy-shift");
+  try {
+    await copyText(buildShiftText(lastShift));
+    button.textContent = "Copiado";
+    button.classList.add("is-copied");
+    $("copy-status").textContent = "Resultado copiado al portapapeles.";
+  } catch {
+    button.textContent = "No se pudo copiar";
+    $("copy-status").textContent = "No se pudo copiar el resultado.";
+  } finally {
+    setTimeout(() => {
+      button.textContent = "Copiar resultado";
+      button.classList.remove("is-copied");
+      $("copy-status").textContent = "";
+    }, 1800);
+  }
+}
+
+// El ¡JARL! del intercambio: bengala visual y, si existe assets/jarl.mp3,
+// su grito. El fichero no se distribuye; quien tenga uno que pueda usar,
+// que lo deje ahí y suena.
+let jarlAudio = null;
+
+function jarl() {
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduced) {
+    document.querySelector(".jarl")?.remove();
+    const el = document.createElement("span");
+    el.className = "jarl";
+    el.textContent = "¡JARL!";
+    el.setAttribute("aria-hidden", "true");
+    document.querySelector(".date-row").append(el);
+    setTimeout(() => el.remove(), 950);
+  }
+  try {
+    jarlAudio ||= new Audio("assets/jarl.mp3");
+    jarlAudio.currentTime = 0;
+    jarlAudio.play().catch(() => {});
+  } catch {
+    // Sin audio disponible: el JARL visual basta.
+  }
+}
+
+function setupTabs() {
+  const tabs = [$("tab-diff"), $("tab-shift")];
+  const panels = [$("panel-diff"), $("panel-shift")];
+
+  function activate(tab, focus) {
+    tabs.forEach((item, index) => {
+      const active = item === tab;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-selected", String(active));
+      item.tabIndex = active ? 0 : -1;
+      panels[index].hidden = !active;
+      if (active) {
+        panels[index].classList.remove("is-entering");
+        void panels[index].offsetWidth;
+        panels[index].classList.add("is-entering");
+      }
+    });
+    if (focus) tab.focus();
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => activate(tab, false));
+    tab.addEventListener("keydown", (event) => {
+      const index = tabs.indexOf(tab);
+      let next = null;
+      if (event.key === "ArrowRight") {
+        next = tabs[(index + 1) % tabs.length];
+      } else if (event.key === "ArrowLeft") {
+        next = tabs[(index - 1 + tabs.length) % tabs.length];
+      } else if (event.key === "Home") {
+        next = tabs[0];
+      } else if (event.key === "End") {
+        next = tabs[tabs.length - 1];
+      }
+      if (next) {
+        event.preventDefault();
+        activate(next, true);
+      }
+    });
+  });
 }
 
 async function calcDiff() {
@@ -218,12 +469,30 @@ async function calcDiff() {
     const result = await api().Diff(date1, date2, zone, $("inclusive").checked);
     renderDiff(result);
   } catch (err) {
-    hideDiffResult();
+    // El resultado anterior se queda en pantalla: un typo no te quita
+    // la respuesta que ya tenías.
     showError("diff-error", cleanError(err));
   } finally {
     button.disabled = false;
     button.textContent = "Calcular diferencia";
   }
+}
+
+// El resultado se recalcula solo al editar las fechas: nada de números
+// rancios en pantalla. Con las fechas incompletas, se retira en silencio.
+let diffTimer = 0;
+
+function scheduleDiff(delay = 300) {
+  clearTimeout(diffTimer);
+  diffTimer = setTimeout(() => {
+    if (!ready) return;
+    if ($("date1").value && $("date2").value) {
+      calcDiff();
+    } else {
+      hideDiffResult();
+      clearError("diff-error");
+    }
+  }, delay);
 }
 
 async function doShift(operation) {
@@ -252,7 +521,6 @@ async function doShift(operation) {
     lastOperation = operation;
     renderShift(result);
   } catch (err) {
-    hideShiftResult();
     showError("shift-error", cleanError(err));
   } finally {
     button.disabled = false;
@@ -265,6 +533,7 @@ async function setNow(input) {
   try {
     input.value = await api().Now(zone);
     clearError("diff-error");
+    scheduleDiff(0);
   } catch (err) {
     showError("diff-error", cleanError(err));
   }
@@ -308,7 +577,9 @@ async function updateZone() {
       : `${state.id} · ${state.text}${state.dst ? " · horario de verano" : ""}`;
   $("zone-chip").classList.toggle("is-dst", state.dst);
   $("footer-zone").textContent = zoneText;
-  $("result-zone").textContent = hasDiff ? `Zona: ${zoneText}` : "";
+  $("result-zone").textContent = hasDiff ? state.text : "";
+  const note = $("panel-zone");
+  if (note) note.textContent = state.text;
 }
 
 async function setupDefaults() {
@@ -326,11 +597,18 @@ function wireEvents() {
   $("calc").addEventListener("click", calcDiff);
   $("add").addEventListener("click", () => doShift("add"));
   $("sub").addEventListener("click", () => doShift("sub"));
+  $("copy-result").addEventListener("click", copyResult);
+  $("copy-shift").addEventListener("click", copyShiftResult);
+  $("totals-toggle").addEventListener("click", () => {
+    totalsExpanded = !totalsExpanded;
+    applyTotalsVisibility();
+  });
 
   $("swap").addEventListener("click", () => {
     const first = $("date1").value;
     $("date1").value = $("date2").value;
     $("date2").value = first;
+    jarl();
     if (hasDiff) calcDiff();
   });
 
@@ -346,7 +624,8 @@ function wireEvents() {
     try {
       await updateZone();
     } catch (err) {
-      showError("diff-error", cleanError(err));
+      // El error cae en la pestaña que está a la vista, no en la oculta.
+      showError($("panel-shift").hidden ? "diff-error" : "shift-error", cleanError(err));
       return;
     }
     if (hasDiff) calcDiff();
@@ -360,14 +639,19 @@ function wireEvents() {
         calcDiff();
       }
     });
-    $(id).addEventListener("input", () => clearError("diff-error"));
+    $(id).addEventListener("input", () => {
+      clearError("diff-error");
+      scheduleDiff();
+    });
+    $(id).addEventListener("change", () => scheduleDiff(0));
   }
 
   for (const id of ["shift-date", "shift-duration"]) {
     $(id).addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        doShift("add");
+        // Enter repite la última operación usada; la primera vez, suma.
+        doShift(lastOperation || "add");
       }
     });
     $(id).addEventListener("input", () => clearError("shift-error"));
@@ -401,6 +685,7 @@ async function boot() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  setupTabs();
   wireEvents();
   boot().catch((err) => showError("diff-error", cleanError(err)));
 });
