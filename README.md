@@ -29,7 +29,7 @@ conexión a internet.
 
 ## La aplicación de escritorio
 
-Pensada para Windows 10/11. Descarga `Chiquito de la Calzada.exe` desde
+Pensada para Windows 10/11. Descarga `chiquito-de-la-calzada.exe` desde
 [Releases](https://github.com/AzuelZero/chiquito_de_la_calzada/releases) y ábrelo;
 no necesita instalación. WebView2 suele venir con Windows y, si falta, Windows lo
 ofrece al arrancar la aplicación.
@@ -160,7 +160,7 @@ cd chiquito_de_la_calzada
 go build -o datecalc.exe .
 
 # Aplicación de escritorio
-go build -tags "gui desktop production" -ldflags "-H windowsgui -s -w" -o "Chiquito de la Calzada.exe" ./gui
+go build -tags "gui desktop production" -ldflags "-H windowsgui -s -w" -o chiquito-de-la-calzada.exe ./gui
 ```
 
 El icono del ejecutable se enlaza desde `gui/rsrc.syso`. Si cambias el logo,
