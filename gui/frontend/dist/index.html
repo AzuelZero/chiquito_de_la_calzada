@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#2F0734" />
+  <title>Chiquito de la Calzada — calculadora de fechas</title>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img class="mark" src="assets/logo.svg" alt="Perro fumando un cigarrillo" width="48" height="48" />
+        <div class="brand-text">
+          <h1>Chiquito de la Calzada</h1>
+          <p>Calculadora de fechas · diferencias, sumas y restas</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <label class="zone-picker" title="Zona horaria de los cálculos">
+          <span class="sr-only">Zona horaria</span>
+          <svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3c2.6 2.7 4 5.9 4 9s-1.4 6.3-4 9c-2.6-2.7-4-5.9-4-9s1.4-6.3 4-9Z" />
+          </svg>
+          <select id="zone-select"></select>
+        </label>
+        <div class="zone" id="zone-chip" title="Zona horaria activa">Hora local</div>
+      </div>
+    </header>
+
+    <main>
+      <p class="sr-only" id="diff-announce" role="status" aria-live="polite"></p>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Diferencia entre fechas</h2>
+        </div>
+
+        <div class="date-row">
+          <label class="field">
+            <span>Fecha 1</span>
+            <div class="date-wrap">
+              <input type="datetime-local" id="date1" step="60" />
+              <button type="button" class="ghost" id="now1" title="Usar la fecha y hora actuales">Ahora</button>
+            </div>
+          </label>
+
+          <button type="button" class="swap" id="swap" title="Intercambiar fechas" aria-label="Intercambiar fechas">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5" />
+            </svg>
+          </button>
+
+          <label class="field">
+            <span>Fecha 2</span>
+            <div class="date-wrap">
+              <input type="datetime-local" id="date2" step="60" />
+              <button type="button" class="ghost" id="now2" title="Usar la fecha y hora actuales">Ahora</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="actions">
+          <label class="check" title="Suma un día al resultado: del 1 al 31 cuentan 31 días.">
+            <input type="checkbox" id="inclusive" />
+            <span>Contar ambos extremos</span>
+          </label>
+          <button type="button" class="primary" id="calc">Calcular diferencia</button>
+        </div>
+
+        <p class="notice" id="diff-warning" role="status" hidden></p>
+        <p class="error" id="diff-error" role="alert" hidden></p>
+      </section>
+
+      <section class="result-card" id="diff-result" hidden>
+        <div class="hero">
+          <div class="hero-label">Días naturales</div>
+          <div class="hero-line">
+            <span class="hero-value" id="natural-days">0</span>
+            <span class="hero-unit" id="natural-unit">días</span>
+          </div>
+          <div class="hero-sub" id="natural-sub"></div>
+        </div>
+
+        <div class="result-side">
+          <div class="relation">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="relation-text"></span>
+          </div>
+          <div class="breakdown" id="breakdown"></div>
+          <div class="zone-ref" id="result-zone"></div>
+        </div>
+      </section>
+
+      <section class="panel totals-panel" id="totals-panel" hidden>
+        <div class="totals-head">
+          <h3>La misma diferencia en</h3>
+        </div>
+        <div class="totals" id="totals"></div>
+      </section>
+
+      <p class="sr-only" id="shift-announce" role="status" aria-live="polite"></p>
+
+      <section class="panel shift-panel">
+        <div class="panel-head">
+          <h2>Sumar o restar a una fecha</h2>
+        </div>
+
+        <div class="shift-row">
+          <label class="field">
+            <span>Fecha base</span>
+            <input type="datetime-local" id="shift-date" step="60" />
+          </label>
+          <label class="field">
+            <span>Duración</span>
+            <input type="text" id="shift-duration" value="1 mes" spellcheck="false" autocomplete="off" />
+          </label>
+        </div>
+
+        <div class="hint">
+          Ejemplos: <code>1a 2mes</code> <code>3 semanas</code> <code>45min</code> <code>-2d</code>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="primary" id="add">Sumar</button>
+          <button type="button" class="secondary" id="sub">Restar</button>
+        </div>
+
+        <p class="notice" id="shift-warning" role="status" hidden></p>
+        <p class="error" id="shift-error" role="alert" hidden></p>
+
+        <div class="shift-result" id="shift-result" hidden>
+          <div class="shift-result-label" id="shift-op"></div>
+          <div class="shift-result-value" id="shift-value"></div>
+          <div class="shift-result-sub" id="shift-sub"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Chiquito de la Calzada · Go + Wails</span>
+      <span id="footer-zone"></span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

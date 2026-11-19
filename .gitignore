@@ -1,0 +1,12 @@
+# Binarios compilados
+*.exe
+*.test
+*.out
+
+# Salidas de Wails
+/build/
+/gui/build/
+
+# Sistema
+.DS_Store
+Thumbs.db
