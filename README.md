@@ -20,7 +20,8 @@ conexión a internet.
 - **Días naturales** en grande, con el desglose exacto y la relación entre las
   fechas.
 - **La misma diferencia en** años, meses, semanas, días de 24 h, horas, minutos,
-  segundos y milisegundos.
+  segundos y milisegundos; en la GUI se muestran primero las relevantes para la
+  magnitud y el resto queda plegado.
 - **Sumar o restar** una duración a una fecha base, con resultado legible e
   ISO 8601.
 - **Zonas horarias IANA** con offset y horario de verano, y avisos cuando una
@@ -56,8 +57,8 @@ ofrece al arrancar la aplicación.
     ocurrencias se ha tomado.
 
 La ventana mide 1000 × 720 y se puede redimensionar. El diseño usa una paleta
-azul-violeta, la tipografía **Fraunces** para el título y la cifra principal, y
-Segoe UI para el resto.
+azul-violeta, la tipografía **Fraunces** para el título y las cifras
+principales, y Segoe UI para el resto.
 
 ## Zonas horarias y horario de verano
 
@@ -204,6 +205,7 @@ sin compilar Wails.
 │   └── rsrc.syso        Recurso de icono para el .exe
 ├── tools/icogen/        Generador Go del .ico
 ├── assets/              Logo y captura para la documentación
+│   └── propuestas/      Versiones anteriores del logo
 ├── main.go              CLI
 ├── main_test.go         Pruebas de la CLI
 └── README.md
