@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Cartel nocturno de un perro fumando">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#3A1A5E"/>
+      <stop offset="0.5" stop-color="#230A3A"/>
+      <stop offset="1" stop-color="#120018"/>
+    </linearGradient>
+    <radialGradient id="spot" cx="0.5" cy="0.28" r="0.62">
+      <stop offset="0" stop-color="#8FD0FF" stop-opacity="0.2"/>
+      <stop offset="0.55" stop-color="#58A6D8" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#120018" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2C418A" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#120018" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="ember" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE0AE"/>
+      <stop offset="0.5" stop-color="#FF9A4D"/>
+      <stop offset="1" stop-color="#E2571F"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD08A"/>
+      <stop offset="1" stop-color="#C98A3C"/>
+    </linearGradient>
+    <clipPath id="badge">
+      <rect width="1024" height="1024" rx="228"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#badge)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <circle cx="512" cy="310" r="360" fill="url(#spot)"/>
+
+    <!-- marco art decó -->
+    <rect x="44" y="44" width="936" height="936" rx="196" fill="none" stroke="#8FD0FF" stroke-opacity="0.16" stroke-width="3"/>
+    <rect x="62" y="62" width="900" height="900" rx="180" fill="none" stroke="#8FD0FF" stroke-opacity="0.08" stroke-width="1.5"/>
+
+    <!-- luna y halo -->
+    <circle cx="512" cy="332" r="212" fill="none" stroke="#FFD08A" stroke-opacity="0.14" stroke-width="2"/>
+    <circle cx="512" cy="332" r="176" fill="#FFB15C" opacity="0.05"/>
+    <circle cx="512" cy="332" r="176" fill="none" stroke="#FFD08A" stroke-opacity="0.1" stroke-width="1.5"/>
+
+    <!-- foco -->
+    <path d="M 512 96 L 188 900 L 836 900 Z" fill="#8FD0FF" opacity="0.045"/>
+    <ellipse cx="512" cy="902" rx="330" ry="48" fill="#05000A" opacity="0.45"/>
+
+    <!-- taburete -->
+    <path d="M 404 738 L 372 900 M 620 738 L 652 900 M 512 752 L 512 908" stroke="#0E0016" stroke-width="16" stroke-linecap="round"/>
+    <path d="M 410 810 L 614 810" stroke="#0E0016" stroke-width="10" stroke-linecap="round"/>
+    <ellipse cx="512" cy="738" rx="154" ry="30" fill="#160022"/>
+    <ellipse cx="512" cy="730" rx="154" ry="30" fill="#2C418A"/>
+    <ellipse cx="512" cy="726" rx="154" ry="26" fill="#3B5AA8"/>
+    <path d="M 366 726 C 400 706 624 706 658 726" fill="none" stroke="#8FD0FF" stroke-opacity="0.35" stroke-width="4"/>
+
+    <!-- cola -->
+    <path d="M 428 760
+             C 330 764 286 816 302 866
+             C 316 910 372 920 402 892
+             C 424 872 420 842 398 832"
+          fill="none" stroke="#1A0526" stroke-width="38" stroke-linecap="round"/>
+    <path d="M 428 760
+             C 330 764 286 816 302 866
+             C 316 910 372 920 402 892"
+          fill="none" stroke="#58A6D8" stroke-width="6" stroke-linecap="round" opacity="0.55"/>
+
+    <!-- cuerpo -->
+    <ellipse cx="446" cy="688" rx="128" ry="132" fill="#1A0526"/>
+    <path d="M 396 610
+             C 470 566 566 580 612 642
+             C 648 692 628 748 566 772
+             C 498 798 414 772 388 714 Z"
+          fill="#1A0526"/>
+    <path d="M 560 660 C 590 690 596 736 578 772" fill="none" stroke="#58A6D8" stroke-width="7" opacity="0.4" stroke-linecap="round"/>
+
+    <!-- patas -->
+    <path d="M 560 690
+             C 590 720 600 780 590 836
+             C 586 858 600 870 620 870
+             C 642 870 650 854 644 834
+             C 626 782 622 730 606 690 Z"
+          fill="#1A0526"/>
+    <path d="M 590 836 C 586 858 600 870 620 870 C 642 870 650 854 644 834" fill="none" stroke="#58A6D8" stroke-width="5" opacity="0.4"/>
+    <path d="M 402 770
+             C 410 806 420 840 424 868
+             C 426 884 440 892 458 888
+             C 474 884 478 872 472 856
+             C 458 816 448 786 444 760 Z"
+          fill="#1A0526"/>
+
+    <!-- cuello -->
+    <path d="M 590 520
+             C 618 546 636 588 638 630
+             C 600 646 566 640 544 618
+             C 552 582 564 548 590 520 Z"
+          fill="#1A0526"/>
+
+    <!-- cabeza -->
+    <path d="M 590 476
+             C 578 418 604 364 652 340
+             C 700 316 748 334 774 372
+             C 792 398 810 418 830 438
+             C 858 464 866 492 852 514
+             C 838 538 806 542 784 528
+             C 764 552 732 562 702 556
+             C 678 552 660 540 650 524
+             C 632 536 610 528 600 510 Z"
+          fill="#1A0526"/>
+
+    <!-- oreja -->
+    <path d="M 648 370
+             C 614 372 594 410 600 458
+             C 606 504 628 536 654 546
+             C 660 508 660 446 658 404 Z"
+          fill="#1A0526"/>
+    <path d="M 648 370 C 614 372 594 410 600 458 C 604 492 616 518 634 534" fill="none" stroke="#58A6D8" stroke-width="5" opacity="0.45"/>
+
+    <!-- brillo de contorno -->
+    <path d="M 596 470
+             C 586 416 610 368 654 346
+             C 700 324 746 340 772 376
+             C 790 400 808 420 828 440"
+          fill="none" stroke="#8FD0FF" stroke-width="8" opacity="0.6" stroke-linecap="round"/>
+    <path d="M 428 566
+             C 478 548 540 556 584 590"
+          fill="none" stroke="#8FD0FF" stroke-width="7" opacity="0.4" stroke-linecap="round"/>
+    <path d="M 360 656 C 330 704 330 754 350 792" fill="none" stroke="#8FD0FF" stroke-width="6" opacity="0.3" stroke-linecap="round"/>
+
+    <!-- ojo -->
+    <circle cx="716" cy="432" r="7" fill="#FFD08A"/>
+    <circle cx="718" cy="430" r="2.5" fill="#FFF6E6"/>
+
+    <!-- collar -->
+    <path d="M 566 610 C 596 630 624 632 650 620 L 660 654 C 624 670 590 664 556 644 Z" fill="#2C418A"/>
+    <circle cx="614" cy="646" r="12" fill="url(#gold)"/>
+
+    <!-- cigarrillo -->
+    <path d="M 796 534 L 918 492" stroke="#1A0526" stroke-width="30" stroke-linecap="round"/>
+    <path d="M 796 534 L 918 492" stroke="#F2E9D8" stroke-width="18" stroke-linecap="round"/>
+    <path d="M 796 534 L 834 520" stroke="#C9A97A" stroke-width="18"/>
+    <circle cx="922" cy="490" r="15" fill="url(#ember)"/>
+    <circle cx="922" cy="490" r="24" fill="#FF9A4D" opacity="0.22"/>
+
+    <!-- humo -->
+    <path d="M 936 470
+             C 974 438 914 404 950 368
+             C 982 336 934 310 954 272
+             C 968 246 948 226 958 206"
+          fill="none" stroke="#BFE9FF" stroke-width="10" opacity="0.42" stroke-linecap="round"/>
+    <path d="M 950 506
+             C 976 486 948 458 970 438"
+          fill="none" stroke="#BFE9FF" stroke-width="6" opacity="0.24" stroke-linecap="round"/>
+    <path d="M 914 548
+             C 934 534 918 514 930 502"
+          fill="none" stroke="#BFE9FF" stroke-width="5" opacity="0.2" stroke-linecap="round"/>
+
+    <!-- motas -->
+    <circle cx="250" cy="250" r="3" fill="#FFD08A" opacity="0.5"/>
+    <circle cx="790" cy="210" r="2" fill="#8FD0FF" opacity="0.5"/>
+    <circle cx="830" cy="740" r="2.5" fill="#FFD08A" opacity="0.35"/>
+    <circle cx="210" cy="700" r="2" fill="#8FD0FF" opacity="0.35"/>
+  </g>
+</svg>

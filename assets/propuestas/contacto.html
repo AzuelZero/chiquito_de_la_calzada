@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Propuestas de logo · Chiquito de la Calzada</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 34px 38px 40px;
+    background:
+      radial-gradient(900px 500px at 50% -10%, rgba(50, 122, 172, 0.28), transparent 65%),
+      linear-gradient(160deg, #2f0734, #17021d 70%);
+    color: #eef4ff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  h1 { margin: 0; font: 600 28px Georgia, serif; letter-spacing: -0.03em; }
+  .sub { margin: 6px 0 24px; color: #a9b9dd; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .card {
+    display: flex;
+    gap: 20px;
+    padding: 18px;
+    border: 1px solid rgba(151, 190, 245, 0.16);
+    border-radius: 16px;
+    background: rgba(45, 17, 76, 0.62);
+  }
+  .art {
+    width: 220px;
+    height: 220px;
+    flex: 0 0 auto;
+    border-radius: 22px;
+    overflow: hidden;
+    background: #17021d;
+  }
+  .art img { width: 100%; height: 100%; display: block; }
+  .info { min-width: 0; padding-top: 4px; }
+  .tag {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(88, 166, 216, 0.16);
+    color: #8fd0ff;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  h2 { margin: 10px 0 4px; font-size: 17px; letter-spacing: -0.01em; }
+  p { margin: 0 0 12px; color: #a9b9dd; font-size: 12.5px; line-height: 1.45; }
+  .mini {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(151, 190, 245, 0.12);
+    border-radius: 11px;
+    background: rgba(23, 2, 29, 0.45);
+  }
+  .mini img { width: 40px; height: 40px; border-radius: 11px; display: block; }
+  .mini strong { display: block; font: 600 14px Georgia, serif; }
+  .mini span { color: #8fa2c6; font-size: 10px; }
+  .rec { border-color: rgba(143, 208, 255, 0.42); box-shadow: 0 12px 40px rgba(0,0,0,.28); }
+</style>
+</head>
+<body>
+  <h1>Propuestas de logo</h1>
+  <p class="sub">Tres direcciones para el perro fumando. La opción A parte del logo actual y corrige sus puntos débiles; B es un emblema más geométrico; C es una ilustración de ambiente para el README o una splash.</p>
+
+  <div class="grid">
+    <section class="card">
+      <div class="art"><img src="../logo.svg" alt="Logo actual" /></div>
+      <div class="info">
+        <span class="tag">Actual</span>
+        <h2>Perro de barrio</h2>
+        <p>Reconocible y con carácter, pero la cabeza es muy redonda y el hocico pesa demasiado. A 48 px se convierte en una mancha azul.</p>
+        <div class="mini"><img src="../logo.svg" alt="" /><div><strong>Chiquito de la Calzada</strong><span>Calculadora de fechas</span></div></div>
+      </div>
+    </section>
+
+    <section class="card rec">
+      <div class="art"><img src="perro_clasico.svg" alt="Propuesta A" /></div>
+      <div class="info">
+        <span class="tag">A · recomendada</span>
+        <h2>Clásico refinado</h2>
+        <p>Conserva la identidad del perro actual: oreja caída, ojo expresivo, colmillo y collar. Suaviza el hocico, reduce el trazo negro, mejora el humo y añade un aro tenue. Es la que mejor funciona como icono de la app.</p>
+        <div class="mini"><img src="perro_clasico.svg" alt="" /><div><strong>Chiquito de la Calzada</strong><span>Calculadora de fechas</span></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="art"><img src="perro_emblema.svg" alt="Propuesta B" /></div>
+      <div class="info">
+        <span class="tag">B</span>
+        <h2>Emblema geométrico</h2>
+        <p>Más plano y silencioso: perfil, oreja oscura, un solo ojo y humo mínimo. Gana a tamaño pequeño, pero pierde la simpatía del retrato y se acerca al lenguaje de un icono genérico.</p>
+        <div class="mini"><img src="perro_emblema.svg" alt="" /><div><strong>Chiquito de la Calzada</strong><span>Calculadora de fechas</span></div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="art"><img src="perro_noir.svg" alt="Propuesta C" /></div>
+      <div class="info">
+        <span class="tag">C</span>
+        <h2>Noir de taburete</h2>
+        <p>Ilustración de ambiente: perro sentado, foco, humo y marco art decó. Tiene más relato que las otras dos, pero demasiado detalle para un icono; funcionaría como cabecera del README o fondo de la splash.</p>
+        <div class="mini"><img src="perro_noir.svg" alt="" /><div><strong>Chiquito de la Calzada</strong><span>Calculadora de fechas</span></div></div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

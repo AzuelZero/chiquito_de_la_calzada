@@ -263,7 +263,7 @@ func (a *App) Diff(date1, date2, zone string, inclusive bool) (DiffResult, error
 		Minutes:      datecore.Round(totals.Minutes, 4),
 		Seconds:      datecore.Round(totals.Seconds, 4),
 		Milliseconds: datecore.Round(totals.Milliseconds, 2),
-		Warning:      strings.Join(warnings, " "),
+		Warning:      strings.Join(warnings, "\n"),
 	}, nil
 }
 

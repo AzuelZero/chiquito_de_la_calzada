@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Perro fumando un cigarrillo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2D114C"/>
+      <stop offset="0.55" stop-color="#302570"/>
+      <stop offset="1" stop-color="#2F0734"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.52" cy="0.46" r="0.55">
+      <stop offset="0" stop-color="#327AAC" stop-opacity="0.8"/>
+      <stop offset="0.65" stop-color="#2C418A" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#2C418A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fur" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#A9E2FF"/>
+      <stop offset="0.5" stop-color="#5BA3D2"/>
+      <stop offset="1" stop-color="#327AAC"/>
+    </linearGradient>
+    <linearGradient id="ear" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#4C8FC0"/>
+      <stop offset="1" stop-color="#2C418A"/>
+    </linearGradient>
+    <linearGradient id="muzzle" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#F2FBFF"/>
+      <stop offset="1" stop-color="#B9DDF2"/>
+    </linearGradient>
+    <radialGradient id="ember" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE0AE"/>
+      <stop offset="0.5" stop-color="#FF9A4D"/>
+      <stop offset="1" stop-color="#E2571F"/>
+    </radialGradient>
+    <clipPath id="badge">
+      <rect width="1024" height="1024" rx="228"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#badge)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <circle cx="512" cy="480" r="420" fill="url(#glow)"/>
+    <circle cx="512" cy="500" r="430" fill="none" stroke="#8FD0FF" stroke-opacity="0.14" stroke-width="3"/>
+    <circle cx="512" cy="500" r="452" fill="none" stroke="#8FD0FF" stroke-opacity="0.06" stroke-width="1.5"/>
+
+    <g stroke="#190524" stroke-width="14" stroke-linejoin="round" stroke-linecap="round">
+      <!-- oreja caída -->
+      <path d="M 380 330
+               C 300 350 244 430 236 530
+               C 228 630 262 716 330 760
+               C 364 716 378 650 378 580
+               C 378 490 388 380 380 330 Z"
+            fill="url(#ear)"/>
+      <path d="M 342 402
+               C 302 458 284 536 292 608
+               C 298 664 316 706 340 730
+               C 354 682 360 620 360 556
+               C 360 496 354 442 342 402 Z"
+            fill="#2D114C" opacity="0.4" stroke="none"/>
+
+      <!-- cabeza y cuello -->
+      <path d="M 334 350
+               C 402 290 504 272 590 300
+               C 652 320 700 358 724 408
+               C 764 416 816 432 856 462
+               C 892 490 906 526 890 558
+               C 872 594 830 610 788 602
+               C 758 648 712 682 660 698
+               C 630 706 600 708 570 704
+               C 530 718 480 720 440 706
+               C 424 702 416 700 410 700
+               C 382 680 360 648 348 610
+               C 320 560 312 500 316 440
+               C 320 388 322 366 334 350 Z"
+            fill="url(#fur)"/>
+
+      <!-- hocico -->
+      <path d="M 700 462
+               C 760 444 824 462 862 500
+               C 888 526 884 566 852 586
+               C 810 612 752 604 714 574
+               C 690 554 684 506 700 462 Z"
+            fill="url(#muzzle)" stroke-width="10"/>
+      <path d="M 716 476
+               C 764 462 816 478 846 506
+               C 864 524 868 548 854 564"
+            fill="none" stroke="#78AFCE" stroke-width="7" opacity="0.65"/>
+
+      <!-- nariz -->
+      <path d="M 836 492
+               C 866 484 892 502 894 530
+               C 896 558 870 574 844 564
+               C 820 554 814 510 836 492 Z"
+            fill="#190524"/>
+      <ellipse cx="856" cy="516" rx="8" ry="6" fill="#A9D3EC" opacity="0.85" stroke="none"/>
+
+      <!-- ojo -->
+      <path d="M 548 448
+               C 574 420 622 420 648 448
+               C 622 474 574 476 548 448 Z"
+            fill="#F4FBFF"/>
+      <circle cx="600" cy="446" r="15" fill="#190524" stroke="none"/>
+      <circle cx="606" cy="440" r="4.5" fill="#FFFFFF" stroke="none"/>
+
+      <!-- ceja -->
+      <path d="M 536 404 C 574 382 626 382 664 404" fill="none" stroke="#190524" stroke-width="12"/>
+
+      <!-- boca y colmillo -->
+      <path d="M 734 582 C 780 596 826 590 858 570" fill="none" stroke="#190524" stroke-width="12"/>
+      <path d="M 772 590 L 788 622 L 804 588 Z" fill="#F2E9D8" stroke-width="7"/>
+
+      <!-- collar -->
+      <path d="M 392 716
+               C 470 756 604 762 694 716
+               L 710 776
+               C 616 824 464 816 372 768 Z"
+            fill="#2C418A"/>
+      <circle cx="552" cy="790" r="26" fill="#FFD08A"/>
+      <circle cx="552" cy="790" r="9" fill="#C9A97A" stroke="none"/>
+
+      <!-- cigarrillo -->
+      <path d="M 838 558 L 964 504" stroke="#190524" stroke-width="38"/>
+      <path d="M 838 558 L 964 504" stroke="#F2E9D8" stroke-width="24"/>
+      <path d="M 838 558 L 884 538" stroke="#C9A97A" stroke-width="24"/>
+      <path d="M 876 541 L 884 538" stroke="#8A6A45" stroke-width="24" opacity="0.55"/>
+      <circle cx="968" cy="502" r="18" fill="url(#ember)" stroke-width="7"/>
+      <circle cx="968" cy="502" r="30" fill="#FF9A4D" opacity="0.16" stroke="none"/>
+    </g>
+
+    <!-- brillo del pelaje -->
+    <path d="M 402 376
+             C 456 330 536 318 604 336
+             C 540 340 468 362 420 414 Z"
+          fill="#D6F1FF" opacity="0.32"/>
+    <path d="M 420 640
+             C 460 664 520 672 570 662"
+          fill="none" stroke="#2C418A" stroke-width="9" opacity="0.28" stroke-linecap="round"/>
+
+    <!-- humo -->
+    <path d="M 980 474
+             C 1016 438 952 410 982 372
+             C 1008 338 962 314 978 278
+             C 988 254 972 238 980 220"
+          fill="none" stroke="#BFE9FF" stroke-width="10" opacity="0.42" stroke-linecap="round"/>
+    <path d="M 998 514
+             C 1022 492 990 464 1010 442"
+          fill="none" stroke="#BFE9FF" stroke-width="7" opacity="0.24" stroke-linecap="round"/>
+  </g>
+</svg>

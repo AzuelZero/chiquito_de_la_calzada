@@ -22,15 +22,15 @@ import (
 	"datecalc/datecore"
 )
 
-const usageText = `Chiquito de la Calzada — calculadora de fechas (datecalc)
+const usageText = `Chiquito de la Calzada — calculadora de fechas
 
 Uso:
-  datecalc                                 Modo interactivo
-  datecalc <fecha1>                        Diferencia con hoy
-  datecalc <fecha1> <fecha2>               Diferencia entre dos fechas
-  datecalc diff <fecha1> <fecha2>          Igual que arriba
-  datecalc add <fecha> <duración>          Suma una duración a una fecha
-  datecalc sub <fecha> <duración>          Resta una duración a una fecha
+  chiquito_de_la_calzada_cli                        Modo interactivo
+  chiquito_de_la_calzada_cli <fecha1>               Diferencia con hoy
+  chiquito_de_la_calzada_cli <fecha1> <fecha2>      Diferencia entre fechas
+  chiquito_de_la_calzada_cli diff <fecha1> <fecha2> Igual que arriba
+  chiquito_de_la_calzada_cli add <fecha> <duración> Sumar una duración
+  chiquito_de_la_calzada_cli sub <fecha> <duración> Restar una duración
 
 Formatos de fecha:
   2026-11-18, 18/11/2026, 18-11-2026
@@ -125,12 +125,12 @@ func run(args []string, w io.Writer) error {
 	switch strings.ToLower(pos[0]) {
 	case "diff":
 		if len(pos) != 3 {
-			return errors.New("uso: datecalc diff <fecha1> <fecha2>")
+			return errors.New("uso: chiquito_de_la_calzada_cli diff <fecha1> <fecha2>")
 		}
 		return printDiff(w, pos[1], pos[2], opts, loc)
 	case "add", "sub":
 		if len(pos) != 3 {
-			return fmt.Errorf("uso: datecalc %s <fecha> <duración>", strings.ToLower(pos[0]))
+			return fmt.Errorf("uso: chiquito_de_la_calzada_cli %s <fecha> <duración>", strings.ToLower(pos[0]))
 		}
 		return printShift(w, strings.ToLower(pos[0]), pos[1], pos[2], opts, loc)
 	case "help":
@@ -366,7 +366,7 @@ func printShift(w io.Writer, cmd, dateStr, durStr string, opts options, loc *tim
 }
 
 func interactive(w io.Writer, opts options, loc *time.Location) error {
-	fmt.Fprintln(w, "Chiquito de la Calzada · datecalc — suma, resta y diferencia de fechas")
+	fmt.Fprintln(w, "Chiquito de la Calzada · CLI — suma, resta y diferencia de fechas")
 	fmt.Fprintf(w, "Zona: %s (%s)\n", zoneTitle(opts), zoneDescription(time.Now().In(loc)))
 	fmt.Fprintln(w, "Formatos: 2026-11-18, 18/11/2026, \"2026-11-18 14:30\", RFC 3339 o \"hoy\".")
 	fmt.Fprintln(w, "Escribe \"salir\" en la primera fecha para terminar.")
