@@ -205,7 +205,7 @@ sin compilar Wails.
 │   └── rsrc.syso        Recurso de icono para el .exe
 ├── tools/icogen/        Generador Go del .ico
 ├── assets/              Logo y captura para la documentación
-│   └── propuestas/      Versiones anteriores del logo
+│   └── propuestas/      Comparativa del logo y propuestas vectoriales
 ├── main.go              CLI
 ├── main_test.go         Pruebas de la CLI
 └── README.md
@@ -213,8 +213,8 @@ sin compilar Wails.
 
 ## Créditos
 
-- **Logo:** fotografía propia. Las propuestas de dibujo anteriores viven en
-  `assets/propuestas/`.
+- **Logo:** fotografía propia. La comparativa con las propuestas vectoriales
+  está en `assets/propuestas/`.
 - **Fraunces:** tipografía de Undercase Type, bajo SIL Open Font License 1.1.
   La licencia está en
   [`gui/frontend/dist/assets/fonts/OFL.txt`](gui/frontend/dist/assets/fonts/OFL.txt).

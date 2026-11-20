@@ -7,6 +7,7 @@ import (
 	"embed"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 	_ "time/tzdata"
@@ -335,6 +336,17 @@ func weekdayES(d time.Weekday) string {
 }
 
 func main() {
+	// La interfaz es en español: fuerza también el idioma de los controles
+	// nativos de WebView2. Sin esto, datetime-local muestra mm/dd/yyyy y AM/PM
+	// en sistemas cuyo locale de Chromium es en-US, aunque Windows esté en español.
+	args := os.Getenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS")
+	if !strings.Contains(args, "--lang=") {
+		if args != "" {
+			args += " "
+		}
+		os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", args+"--lang=es")
+	}
+
 	app := &App{}
 	err := wails.Run(&options.App{
 		Title:            "Chiquito de la Calzada — calculadora de fechas",
