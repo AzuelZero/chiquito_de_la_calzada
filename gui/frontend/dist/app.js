@@ -381,10 +381,18 @@ async function copyShiftResult() {
   }
 }
 
-// El ¡JARL! del intercambio: bengala visual y, si existe assets/jarl.mp3,
-// su grito. El fichero no se distribuye; quien tenga uno que pueda usar,
-// que lo deje ahí y suena.
-let jarlAudio = null;
+// El ¡JARL! del intercambio: bengala visual y el grito real de Chiquito.
+// El clip viaja dentro de la app; no hace falta conexión.
+let jarlAudio = (() => {
+  try {
+    const audio = new Audio("assets/jarl.mp3");
+    audio.preload = "auto";
+    audio.volume = 0.9;
+    return audio;
+  } catch {
+    return null;
+  }
+})();
 
 function jarl() {
   const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -398,7 +406,11 @@ function jarl() {
     setTimeout(() => el.remove(), 950);
   }
   try {
-    jarlAudio ||= new Audio("assets/jarl.mp3");
+    if (!jarlAudio) {
+      jarlAudio = new Audio("assets/jarl.mp3");
+      jarlAudio.preload = "auto";
+      jarlAudio.volume = 0.9;
+    }
     jarlAudio.currentTime = 0;
     jarlAudio.play().catch(() => {});
   } catch {

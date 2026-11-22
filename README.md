@@ -47,9 +47,9 @@ ofrece al arrancar la aplicación.
   «Ver todas las unidades» despliega las demás.
 - En «Sumar o restar», Enter repite la última operación usada y el resultado
   también se puede copiar.
-- Al intercambiar las dos fechas… **¡JARL!** Si además dejas un clip propio
-  como `gui/frontend/dist/assets/jarl.mp3`, el grito suena (el fichero de
-  audio no se distribuye con el repositorio).
+- Al intercambiar las dos fechas… **¡JARL!**, con el grito real de Chiquito
+  incluido en la app. El audio viaja dentro del ejecutable: no necesita
+  conexión.
 - Los avisos de horario de verano aparecen bajo el formulario correspondiente:
   - **Hora inexistente** al adelantar el reloj: se indica cómo la interpreta Go
     (por ejemplo, `02:30` se convierte en `03:30`).
@@ -200,7 +200,7 @@ sin compilar Wails.
 .
 ├── datecore/            Lógica compartida: fechas, duraciones, totales y DST
 ├── gui/                 Aplicación Wails
-│   ├── frontend/dist/   HTML, CSS, JS, logo y fuente Fraunces
+│   ├── frontend/dist/   HTML, CSS, JS, logo, fuente Fraunces y audio
 │   ├── app.ico          Icono multi-resolución
 │   └── rsrc.syso        Recurso de icono para el .exe
 ├── tools/icogen/        Generador Go del .ico
@@ -215,6 +215,11 @@ sin compilar Wails.
 
 - **Logo:** fotografía propia. La comparativa con las propuestas vectoriales
   está en `assets/propuestas/`.
+- **Sonido:** el conocido grito gutural de Chiquito de la Calzada, tomado de
+  [Tonos Móvil](https://tonosmovil.net/chiquito-de-la-calzada-grito/);
+  normalizado y recortado para la animación. Se incluye como cita breve de
+  homenaje. Los derechos sobre la voz y la grabación pertenecen a sus
+  titulares.
 - **Fraunces:** tipografía de Undercase Type, bajo SIL Open Font License 1.1.
   La licencia está en
   [`gui/frontend/dist/assets/fonts/OFL.txt`](gui/frontend/dist/assets/fonts/OFL.txt).
