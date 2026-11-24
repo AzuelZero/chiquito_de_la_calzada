@@ -6,6 +6,7 @@
 # Salidas de Wails
 /build/
 /gui/build/
+/dist/
 
 # Sistema
 .DS_Store

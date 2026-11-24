@@ -8,14 +8,37 @@ const $ = (id) => document.getElementById(id);
 const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 const nf0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
 
+const STORAGE_KEY = "chiquito.estado.v2";
+const HISTORY_KEY = "chiquito.historial.v1";
+const FAVORITES_KEY = "chiquito.favoritos.v1";
+
 let zone = "local";
 let zoneText = "";
+let zoneMode = "wall";
+let soundEnabled = true;
+let ready = false;
 let hasDiff = false;
 let hasShift = false;
 let lastOperation = "";
 let lastDiff = null;
 let lastShift = null;
-let ready = false;
+let lastAge = null;
+let lastWork = null;
+let lastWorkShift = null;
+let lastConvert = null;
+let lastFacts = null;
+let currentTab = "diff";
+let totalsExpanded = false;
+let lastPrimary = [];
+let diffTimer = 0;
+
+let zones = [];
+const zonesById = new Map();
+const zonesByCity = new Map();
+let historyEntries = [];
+let favorites = [];
+
+const tabNames = ["diff", "shift", "age", "work", "convert", "facts"];
 
 function api() {
   return window.go.main.App;
@@ -28,20 +51,20 @@ function pad(n) {
 function toInputValue(date) {
   return (
     `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
   );
 }
 
 // Suma días de calendario sin pasar por la zona local del navegador: así el
 // ejemplo inicial de 30 días no cambia de hora si el sistema está en DST.
 function shiftInputDays(value, days) {
-  const [datePart, timePart = "00:00"] = value.split("T");
+  const [datePart, timePart = "00:00:00"] = value.split("T");
   const [year, month, day] = datePart.split("-").map(Number);
-  const [hour, minute] = timePart.split(":").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days, hour, minute));
+  const [hour, minute, second = 0] = timePart.split(":").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days, hour, minute, second));
   return (
     `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}` +
-    `T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`
+    `T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`
   );
 }
 
@@ -57,12 +80,14 @@ function cleanError(err) {
 
 function showError(id, message) {
   const el = $(id);
+  if (!el) return;
   el.textContent = message;
   el.hidden = false;
 }
 
 function clearError(id) {
-  $(id).hidden = true;
+  const el = $(id);
+  if (el) el.hidden = true;
 }
 
 function reveal(el) {
@@ -84,19 +109,476 @@ function splitHuman(human) {
   return [match[1], capitalize(match[2])];
 }
 
+function setCopyStatus(message, delay = 2400) {
+  const el = $("copy-status");
+  el.textContent = message;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => {
+    el.textContent = "";
+  }, delay);
+}
+
+function announce(id, text) {
+  const el = $(id);
+  if (el) el.textContent = text;
+}
+
+// --------------------------------------------------------------- persistencia
+
+function readJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const value = JSON.parse(raw);
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Sin almacenamiento disponible: la app sigue funcionando en memoria.
+  }
+}
+
+function collectState() {
+  return {
+    zone,
+    zoneMode,
+    sound: soundEnabled,
+    tab: currentTab,
+    inclusive: $("inclusive").checked,
+    date1: $("date1").value,
+    date2: $("date2").value,
+    shiftDate: $("shift-date").value,
+    shiftDuration: $("shift-duration").value,
+    ageBirth: $("age-birth").value,
+    ageAt: $("age-at").value,
+    ageToday: $("age-today").checked,
+    workStart: $("work-start").value,
+    workEnd: $("work-end").value,
+    workBase: $("work-base").value,
+    workDays: $("work-days").value,
+    workCountry: $("work-country").value,
+    workHolidays: $("work-holidays").value,
+    workInclusive: $("work-inclusive").checked,
+    convertDate: $("convert-date").value,
+    convertFrom: $("convert-from").value,
+    convertTo: $("convert-to").value,
+    factsDate: $("facts-date").value,
+  };
+}
+
+function saveState() {
+  if (!ready) return;
+  writeJSON(STORAGE_KEY, collectState());
+}
+
+function restoreState() {
+  const s = readJSON(STORAGE_KEY, {});
+  if (typeof s.zone === "string" && (s.zone === "local" || s.zone === "UTC" || zonesById.has(s.zone))) {
+    zone = s.zone;
+  }
+  if (s.zoneMode === "instant" || s.zoneMode === "wall") zoneMode = s.zoneMode;
+  if (typeof s.sound === "boolean") soundEnabled = s.sound;
+  const values = {
+    date1: s.date1,
+    date2: s.date2,
+    "shift-date": s.shiftDate,
+    "shift-duration": s.shiftDuration,
+    "age-birth": s.ageBirth,
+    "age-at": s.ageAt,
+    "work-start": s.workStart,
+    "work-end": s.workEnd,
+    "work-base": s.workBase,
+    "work-days": s.workDays,
+    "work-country": s.workCountry,
+    "work-holidays": s.workHolidays,
+    "convert-date": s.convertDate,
+    "convert-from": s.convertFrom,
+    "convert-to": s.convertTo,
+    "facts-date": s.factsDate,
+  };
+  for (const [id, value] of Object.entries(values)) {
+    if (typeof value === "string" && $(id)) $(id).value = value;
+  }
+  $("inclusive").checked = Boolean(s.inclusive);
+  $("work-inclusive").checked = Boolean(s.workInclusive);
+  $("age-today").checked = s.ageToday !== false;
+  for (const name of tabNames) {
+    if (s.tab === name) currentTab = name;
+  }
+}
+
+// ------------------------------------------------------------------ historial
+
+function loadLists() {
+  historyEntries = readJSON(HISTORY_KEY, []);
+  favorites = readJSON(FAVORITES_KEY, []);
+  if (!Array.isArray(historyEntries)) historyEntries = [];
+  if (!Array.isArray(favorites)) favorites = [];
+}
+
+function entryLabel(entry) {
+  return entry.label || "Operación";
+}
+
+function entryMeta(entry) {
+  const parts = [];
+  if (entry.zone) parts.push(entry.zone === "local" ? "hora local" : entry.zone);
+  if (entry.at) {
+    try {
+      parts.push(new Date(entry.at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" }));
+    } catch {
+      // Sin fecha legible.
+    }
+  }
+  return parts.join(" · ");
+}
+
+function pushHistory(entry) {
+  const copy = { ...entry, at: Date.now() };
+  const key = `${copy.kind}|${copy.label}|${JSON.stringify(copy.data || {})}`;
+  historyEntries = historyEntries.filter((item) => `${item.kind}|${item.label}|${JSON.stringify(item.data || {})}` !== key);
+  historyEntries.unshift(copy);
+  historyEntries = historyEntries.slice(0, 12);
+  writeJSON(HISTORY_KEY, historyEntries);
+  renderHistory();
+}
+
+function renderHistory() {
+  renderList($("history-list"), historyEntries, false, "Todavía no hay operaciones.");
+  renderList($("favorites-list"), favorites, true, "Guarda una diferencia con el botón «Guardar favorito».");
+}
+
+function renderList(container, list, isFavorite, emptyText) {
+  container.replaceChildren();
+  if (!list.length) {
+    const empty = document.createElement("p");
+    empty.className = "history-empty";
+    empty.textContent = emptyText;
+    container.append(empty);
+    return;
+  }
+  list.forEach((entry, index) => {
+    const item = document.createElement("div");
+    item.className = "history-item";
+
+    const text = document.createElement("div");
+    text.className = "history-item-text";
+    const title = document.createElement("strong");
+    title.textContent = isFavorite ? entry.name || entryLabel(entry) : entryLabel(entry);
+    const meta = document.createElement("span");
+    meta.textContent = entryMeta(entry);
+    text.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "history-item-actions";
+    const use = document.createElement("button");
+    use.type = "button";
+    use.className = "copy";
+    use.textContent = "Usar";
+    use.dataset.action = "use";
+    use.dataset.index = String(index);
+    use.dataset.favorite = isFavorite ? "1" : "0";
+    actions.append(use);
+
+    if (isFavorite) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "copy";
+      remove.textContent = "Quitar";
+      remove.dataset.action = "remove";
+      remove.dataset.index = String(index);
+      actions.append(remove);
+    }
+
+    item.append(text, actions);
+    container.append(item);
+  });
+}
+
+function useEntry(entry) {
+  $("history-dialog").close();
+  switch (entry.kind) {
+    case "diff":
+      $("date1").value = entry.data.date1 || "";
+      $("date2").value = entry.data.date2 || "";
+      $("inclusive").checked = Boolean(entry.data.inclusive);
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("diff", false, false);
+      updateZone().then(() => calcDiff(false));
+      break;
+    case "shift":
+      $("shift-date").value = entry.data.date || "";
+      $("shift-duration").value = entry.data.duration || "";
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("shift", false, false);
+      updateZone().then(() => doShift(entry.data.operation || "add", false));
+      break;
+    case "age":
+      $("age-birth").value = entry.data.birth || "";
+      $("age-at").value = entry.data.at || "";
+      $("age-today").checked = !entry.data.at;
+      $("age-at").disabled = $("age-today").checked;
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("age", false, false);
+      updateZone().then(() => calcAge(false));
+      break;
+    case "work":
+      $("work-start").value = entry.data.start || "";
+      $("work-end").value = entry.data.end || "";
+      $("work-country").value = entry.data.country || "";
+      $("work-holidays").value = entry.data.holidays || "";
+      $("work-inclusive").checked = Boolean(entry.data.inclusive);
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("work", false, false);
+      updateZone().then(() => calcWork(false));
+      break;
+    case "workadd":
+      $("work-base").value = entry.data.base || "";
+      $("work-days").value = entry.data.days || "10";
+      $("work-country").value = entry.data.country || "";
+      $("work-holidays").value = entry.data.holidays || "";
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("work", false, false);
+      updateZone().then(() => doWorkShift(entry.data.operation || "add", false));
+      break;
+    case "convert":
+      $("convert-date").value = entry.data.date || "";
+      $("convert-from").value = entry.data.from || "local";
+      $("convert-to").value = entry.data.to || "UTC";
+      activateTab("convert", false, false);
+      runConvert(false);
+      break;
+    case "facts":
+      $("facts-date").value = entry.data.date || "";
+      if (entry.zone) applyZoneSelection(entry.zone, false);
+      activateTab("facts", false, false);
+      updateZone().then(() => runFacts(false));
+      break;
+    default:
+      break;
+  }
+  saveState();
+}
+
+function wireHistory() {
+  $("history-open").addEventListener("click", () => {
+    renderHistory();
+    $("history-dialog").showModal();
+  });
+
+  $("history-dialog").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const index = Number(button.dataset.index);
+    const isFavorite = button.dataset.favorite === "1";
+    const list = isFavorite ? favorites : historyEntries;
+    const entry = list[index];
+    if (!entry) return;
+    if (button.dataset.action === "use") {
+      useEntry(entry);
+    } else if (button.dataset.action === "remove") {
+      favorites.splice(index, 1);
+      writeJSON(FAVORITES_KEY, favorites);
+      renderHistory();
+    }
+  });
+}
+
+function saveFavorite() {
+  if (!lastDiff) {
+    setCopyStatus("Calcula una diferencia antes de guardar un favorito.");
+    return;
+  }
+  const suggested = `Del ${lastDiff.human1.split(" (")[0]} al ${lastDiff.human2.split(" (")[0]}`;
+  const name = window.prompt("Nombre del favorito:", suggested);
+  if (name === null) return;
+  const clean = name.trim() || suggested;
+  favorites.unshift({
+    name: clean,
+    kind: "diff",
+    label: suggested,
+    zone,
+    data: {
+      date1: $("date1").value,
+      date2: $("date2").value,
+      inclusive: $("inclusive").checked,
+    },
+    at: Date.now(),
+  });
+  favorites = favorites.slice(0, 30);
+  writeJSON(FAVORITES_KEY, favorites);
+  renderHistory();
+  setCopyStatus(`Favorito «${clean}» guardado.`);
+}
+
+// --------------------------------------------------------------------- zonas
+
+function normalizeText(text) {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function zoneDisplay(id) {
+  if (id === "local") return "Hora local";
+  if (id === "UTC") return "UTC";
+  const z = zonesById.get(id);
+  return z ? `${z.city} — ${z.id}` : id;
+}
+
+function resolveZoneText(text) {
+  const raw = text.trim();
+  if (!raw) return null;
+  if (zonesById.has(raw) || raw === "local" || raw === "UTC") return raw;
+  const afterDash = raw.includes("—") ? raw.split("—").pop().trim() : raw;
+  if (zonesById.has(afterDash) || afterDash === "local" || afterDash === "UTC") return afterDash;
+  const norm = normalizeText(afterDash);
+  const byCity = zonesByCity.get(norm);
+  if (byCity) return byCity;
+  for (const z of zones) {
+    if (normalizeText(z.city) === norm || normalizeText(z.id) === norm) return z.id;
+  }
+  for (const z of zones) {
+    if (normalizeText(z.city).startsWith(norm) || normalizeText(z.id).startsWith(norm)) return z.id;
+  }
+  for (const z of zones) {
+    if (normalizeText(z.id).includes(norm) || normalizeText(z.city).includes(norm)) return z.id;
+  }
+  return null;
+}
+
+function flashZoneError() {
+  const chip = $("zone-chip");
+  chip.textContent = "Zona no válida";
+  chip.classList.add("is-invalid");
+  setTimeout(() => {
+    chip.classList.remove("is-invalid");
+    updateZone().catch(() => {});
+  }, 1600);
+}
+
+async function loadZones() {
+  zones = await api().Zones();
+  zonesById.clear();
+  zonesByCity.clear();
+  for (const item of zones) {
+    zonesById.set(item.id, item);
+    zonesByCity.set(normalizeText(item.city), item.id);
+  }
+
+  const list = $("zone-list");
+  list.replaceChildren();
+  for (const item of zones) {
+    const option = document.createElement("option");
+    option.value = zoneDisplay(item.id);
+    option.label = `${item.group} · ${item.id}`;
+    list.append(option);
+  }
+
+  fillZoneSelect($("convert-from"));
+  fillZoneSelect($("convert-to"));
+}
+
+function fillZoneSelect(select) {
+  select.replaceChildren();
+  const groups = new Map();
+  for (const item of zones) {
+    let group = groups.get(item.group);
+    if (!group) {
+      group = document.createElement("optgroup");
+      group.label = item.group;
+      groups.set(item.group, group);
+      select.append(group);
+    }
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.id === "local" ? "Hora local" : item.city;
+    option.title = `${item.id}${item.offset ? " · " + item.offset : ""}`;
+    group.append(option);
+  }
+}
+
+async function updateZone() {
+  const state = await api().Zone(zone);
+  zoneText = state.id === "UTC" ? `UTC · ${state.offset}` : `${state.city} · ${state.text}`;
+  $("zone-select").value = zoneDisplay(zone);
+  $("zone-chip").textContent = state.text;
+  $("zone-chip").title =
+    state.id === "local"
+      ? `Hora local · ${state.text}`
+      : `${state.id} · ${state.text}${state.dst ? " · horario de verano" : ""}`;
+  $("zone-chip").classList.toggle("is-dst", state.dst);
+  $("zone-chip").classList.remove("is-invalid");
+  $("footer-zone").textContent = zoneText;
+  $("result-zone").textContent = hasDiff ? state.text : "";
+  const note = $("panel-zone");
+  if (note) note.textContent = state.text;
+  if (!$("convert-from").value) {
+    $("convert-from").value = zone;
+  }
+}
+
+function applyZoneSelection(id, convertInputs) {
+  zone = id;
+  $("zone-select").value = zoneDisplay(id);
+}
+
+async function convertInputsToZone(oldZone, newZone) {
+  const ids = ["date1", "date2", "shift-date", "work-start", "work-end", "work-base", "facts-date"];
+  for (const id of ids) {
+    const input = $(id);
+    if (!input || !input.value) continue;
+    try {
+      const converted = await api().ConvertInput(input.value, oldZone, newZone);
+      if (converted) input.value = converted;
+    } catch {
+      // Si una fecha no se puede convertir, se deja como estaba.
+    }
+  }
+}
+
+async function changeZone(id) {
+  if (!id || id === zone) {
+    $("zone-select").value = zoneDisplay(zone);
+    return;
+  }
+  const old = zone;
+  if (zoneMode === "instant") {
+    await convertInputsToZone(old, id);
+  }
+  zone = id;
+  try {
+    await updateZone();
+  } catch (err) {
+    zone = old;
+    $("zone-select").value = zoneDisplay(old);
+    showError(currentTab === "shift" ? "shift-error" : "diff-error", cleanError(err));
+    return;
+  }
+  saveState();
+  if (hasDiff) calcDiff(false);
+  if (hasShift && lastOperation) doShift(lastOperation, false);
+  if (currentTab === "age" && $("age-birth").value) calcAge(false);
+  if (currentTab === "work" && $("work-start").value && $("work-end").value) calcWork(false);
+  if (currentTab === "facts" && $("facts-date").value) runFacts(false);
+}
+
+// ---------------------------------------------------------------------- diff
+
 function hideDiffResult() {
   hasDiff = false;
   lastDiff = null;
   $("diff-result").hidden = true;
   $("totals-panel").hidden = true;
   $("diff-announce").textContent = "";
-}
-
-function hideShiftResult() {
-  hasShift = false;
-  $("shift-result").hidden = true;
-  $("shift-empty").hidden = false;
-  $("shift-announce").textContent = "";
 }
 
 function buildBreakdown(breakdown) {
@@ -131,7 +613,6 @@ function buildBreakdown(breakdown) {
   }
 }
 
-// Unidades que merecen verse sin desplegar, según la magnitud del resultado.
 const primaryUnits = (days24) => {
   if (days24 >= 730) return ["Años", "Meses", "Semanas", "Días de 24 h"];
   if (days24 >= 61) return ["Meses", "Semanas", "Días de 24 h", "Horas"];
@@ -139,9 +620,6 @@ const primaryUnits = (days24) => {
   if (days24 >= 2) return ["Días de 24 h", "Horas", "Minutos", "Segundos"];
   return ["Horas", "Minutos", "Segundos", "Milisegundos"];
 };
-
-let totalsExpanded = false;
-let lastPrimary = [];
 
 function renderTotals(result) {
   const rows = [
@@ -168,9 +646,7 @@ function renderTotals(result) {
     const labelEl = document.createElement("div");
     labelEl.className = "total-label";
     labelEl.textContent = label;
-    if (hint) {
-      labelEl.title = hint;
-    }
+    if (hint) labelEl.title = hint;
 
     const valueEl = document.createElement("div");
     valueEl.className = "total-value";
@@ -183,7 +659,6 @@ function renderTotals(result) {
   applyTotalsVisibility();
 }
 
-// Muestra las unidades principales o todas, según el desplegable.
 function applyTotalsVisibility() {
   const wrap = $("totals");
   const toggle = $("totals-toggle");
@@ -200,6 +675,7 @@ function applyTotalsVisibility() {
 
 function renderWarning(id, message) {
   const el = $(id);
+  if (!el) return;
   el.textContent = message || "";
   el.hidden = !message;
   el.classList.toggle("is-dst", /horario de (verano|invierno)/.test(message || ""));
@@ -240,19 +716,6 @@ function renderDiff(result) {
   reveal($("totals-panel"));
 }
 
-function renderShift(result) {
-  lastShift = result;
-  $("shift-op").textContent = `${capitalize(result.operation)} ${result.duration}`;
-  $("shift-value").textContent = result.resultHuman;
-  $("shift-sub").textContent = `Desde ${result.startHuman} · ${result.iso}`;
-  renderWarning("shift-warning", result.warning);
-  $("shift-announce").textContent = `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`;
-
-  hasShift = true;
-  $("shift-empty").hidden = true;
-  reveal($("shift-result"));
-}
-
 function buildDiffText(result) {
   const parts = [];
   parts.push(
@@ -290,6 +753,18 @@ function buildDiffText(result) {
   return parts.join("\n");
 }
 
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // WebView2 puede denegar el portapapeles; probamos el método clásico.
+    }
+  }
+  return fallbackCopy(text);
+}
+
 function fallbackCopy(text) {
   return new Promise((resolve, reject) => {
     const area = document.createElement("textarea");
@@ -314,153 +789,62 @@ function fallbackCopy(text) {
   });
 }
 
-async function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch {
-      // WebView2 puede denegar el portapapeles; probamos el método clásico.
-    }
-  }
-  return fallbackCopy(text);
-}
-
-async function copyResult() {
-  if (!lastDiff) return;
-  const button = $("copy-result");
+async function copyWithFeedback(button, text, okText = "Copiado") {
+  const label = button.textContent;
   try {
-    await copyText(buildDiffText(lastDiff));
-    button.textContent = "Copiado";
+    await copyText(text);
+    button.textContent = okText;
     button.classList.add("is-copied");
-    $("copy-status").textContent = "Resultado copiado al portapapeles.";
-    setTimeout(() => {
-      button.textContent = "Copiar resultado";
-      button.classList.remove("is-copied");
-      $("copy-status").textContent = "";
-    }, 1800);
+    setCopyStatus("Resultado copiado al portapapeles.");
   } catch {
     button.textContent = "No se pudo copiar";
-    $("copy-status").textContent = "No se pudo copiar el resultado.";
-    setTimeout(() => {
-      button.textContent = "Copiar resultado";
-      $("copy-status").textContent = "";
-    }, 2200);
-  }
-}
-
-function buildShiftText(result) {
-  const parts = [
-    `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`,
-    `Desde ${result.startHuman}.`,
-    `ISO 8601: ${result.iso}.`,
-  ];
-  if (zoneText) {
-    parts.push(`Zona: ${zoneText}.`);
-  }
-  return parts.join("\n");
-}
-
-async function copyShiftResult() {
-  if (!lastShift) return;
-  const button = $("copy-shift");
-  try {
-    await copyText(buildShiftText(lastShift));
-    button.textContent = "Copiado";
-    button.classList.add("is-copied");
-    $("copy-status").textContent = "Resultado copiado al portapapeles.";
-  } catch {
-    button.textContent = "No se pudo copiar";
-    $("copy-status").textContent = "No se pudo copiar el resultado.";
+    setCopyStatus("No se pudo copiar el resultado.");
   } finally {
     setTimeout(() => {
-      button.textContent = "Copiar resultado";
+      button.textContent = label;
       button.classList.remove("is-copied");
-      $("copy-status").textContent = "";
     }, 1800);
   }
 }
 
-// El ¡JARL! del intercambio: bengala visual y el grito real de Chiquito.
-// El clip viaja dentro de la app; no hace falta conexión.
-let jarlAudio = (() => {
+async function saveICS(ics, button) {
+  const label = button.textContent;
   try {
-    const audio = new Audio("assets/jarl.mp3");
-    audio.preload = "auto";
-    audio.volume = 0.9;
-    return audio;
-  } catch {
-    return null;
-  }
-})();
-
-function jarl() {
-  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!reduced) {
-    document.querySelector(".jarl")?.remove();
-    const el = document.createElement("span");
-    el.className = "jarl";
-    el.textContent = "¡JARL!";
-    el.setAttribute("aria-hidden", "true");
-    document.querySelector(".date-row").append(el);
-    setTimeout(() => el.remove(), 950);
-  }
-  try {
-    if (!jarlAudio) {
-      jarlAudio = new Audio("assets/jarl.mp3");
-      jarlAudio.preload = "auto";
-      jarlAudio.volume = 0.9;
+    const path = await api().SaveICS(ics.content, ics.filename);
+    if (path) {
+      button.textContent = "Guardado";
+      setCopyStatus(`Evento guardado en ${path}`);
+    } else {
+      setCopyStatus("Guardado cancelado.");
     }
-    jarlAudio.currentTime = 0;
-    jarlAudio.play().catch(() => {});
-  } catch {
-    // Sin audio disponible: el JARL visual basta.
+  } catch (err) {
+    button.textContent = "No se pudo guardar";
+    setCopyStatus(cleanError(err));
+  } finally {
+    setTimeout(() => {
+      button.textContent = label;
+    }, 2000);
   }
 }
 
-function setupTabs() {
-  const tabs = [$("tab-diff"), $("tab-shift")];
-  const panels = [$("panel-diff"), $("panel-shift")];
-
-  function activate(tab, focus) {
-    tabs.forEach((item, index) => {
-      const active = item === tab;
-      item.classList.toggle("is-active", active);
-      item.setAttribute("aria-selected", String(active));
-      item.tabIndex = active ? 0 : -1;
-      panels[index].hidden = !active;
-      if (active) {
-        panels[index].classList.remove("is-entering");
-        void panels[index].offsetWidth;
-        panels[index].classList.add("is-entering");
-      }
-    });
-    if (focus) tab.focus();
+async function exportDiff() {
+  if (!lastDiff) return;
+  const allDay = /T00:00(:00)?$/.test($("date2").value);
+  try {
+    const ics = await api().EventICS(
+      lastDiff.iso2,
+      zone,
+      `Fecha: ${lastDiff.human2.split(" (")[0]}`,
+      buildDiffText(lastDiff),
+      allDay
+    );
+    await saveICS(ics, $("export-diff"));
+  } catch (err) {
+    showError("diff-error", cleanError(err));
   }
-
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => activate(tab, false));
-    tab.addEventListener("keydown", (event) => {
-      const index = tabs.indexOf(tab);
-      let next = null;
-      if (event.key === "ArrowRight") {
-        next = tabs[(index + 1) % tabs.length];
-      } else if (event.key === "ArrowLeft") {
-        next = tabs[(index - 1 + tabs.length) % tabs.length];
-      } else if (event.key === "Home") {
-        next = tabs[0];
-      } else if (event.key === "End") {
-        next = tabs[tabs.length - 1];
-      }
-      if (next) {
-        event.preventDefault();
-        activate(next, true);
-      }
-    });
-  });
 }
 
-async function calcDiff() {
+async function calcDiff(record = false) {
   if (!ready) return;
 
   clearError("diff-error");
@@ -480,26 +864,29 @@ async function calcDiff() {
   try {
     const result = await api().Diff(date1, date2, zone, $("inclusive").checked);
     renderDiff(result);
+    if (record) {
+      pushHistory({
+        kind: "diff",
+        label: `${nf.format(result.naturalDays)} días · ${result.human1.split(" (")[0]} → ${result.human2.split(" (")[0]}`,
+        zone,
+        data: { date1, date2, inclusive: $("inclusive").checked },
+      });
+    }
   } catch (err) {
-    // El resultado anterior se queda en pantalla: un typo no te quita
-    // la respuesta que ya tenías.
     showError("diff-error", cleanError(err));
   } finally {
     button.disabled = false;
     button.textContent = "Calcular diferencia";
+    saveState();
   }
 }
-
-// El resultado se recalcula solo al editar las fechas: nada de números
-// rancios en pantalla. Con las fechas incompletas, se retira en silencio.
-let diffTimer = 0;
 
 function scheduleDiff(delay = 300) {
   clearTimeout(diffTimer);
   diffTimer = setTimeout(() => {
     if (!ready) return;
     if ($("date1").value && $("date2").value) {
-      calcDiff();
+      calcDiff(false);
     } else {
       hideDiffResult();
       clearError("diff-error");
@@ -507,7 +894,52 @@ function scheduleDiff(delay = 300) {
   }, delay);
 }
 
-async function doShift(operation) {
+async function setNow(input, errorId) {
+  try {
+    input.value = await api().Now(zone);
+    clearError(errorId);
+    if (input === $("date1") || input === $("date2")) scheduleDiff(0);
+    if (input === $("facts-date")) runFacts(false);
+    saveState();
+  } catch (err) {
+    showError(errorId, cleanError(err));
+  }
+}
+
+// ---------------------------------------------------------------- sumar/restar
+
+function hideShiftResult() {
+  hasShift = false;
+  lastShift = null;
+  $("shift-result").hidden = true;
+  $("shift-empty").hidden = false;
+  $("shift-announce").textContent = "";
+}
+
+function renderShift(result) {
+  lastShift = result;
+  $("shift-op").textContent = `${capitalize(result.operation)} ${result.duration}`;
+  $("shift-value").textContent = result.resultHuman;
+  $("shift-sub").textContent = `Desde ${result.startHuman} · ${result.iso}`;
+  renderWarning("shift-warning", result.warning);
+  $("shift-announce").textContent = `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`;
+
+  hasShift = true;
+  $("shift-empty").hidden = true;
+  reveal($("shift-result"));
+}
+
+function buildShiftText(result) {
+  const parts = [
+    `${capitalize(result.operation)} ${result.duration}: ${result.resultHuman}.`,
+    `Desde ${result.startHuman}.`,
+    `ISO 8601: ${result.iso}.`,
+  ];
+  if (zoneText) parts.push(`Zona: ${zoneText}.`);
+  return parts.join("\n");
+}
+
+async function doShift(operation, record = false) {
   if (!ready) return;
 
   clearError("shift-error");
@@ -532,85 +964,618 @@ async function doShift(operation) {
     const result = await api().Shift(date, duration, operation, zone);
     lastOperation = operation;
     renderShift(result);
+    if (record) {
+      pushHistory({
+        kind: "shift",
+        label: `${capitalize(result.operation)} ${result.duration} · ${result.resultHuman.split(" (")[0]}`,
+        zone,
+        data: { date, duration, operation },
+      });
+    }
   } catch (err) {
     showError("shift-error", cleanError(err));
   } finally {
     button.disabled = false;
     other.disabled = false;
     button.textContent = label;
+    saveState();
   }
 }
 
-async function setNow(input) {
+async function exportShift() {
+  if (!lastShift) return;
+  const allDay = /T00:00(:00)?$/.test($("shift-date").value);
   try {
-    input.value = await api().Now(zone);
-    clearError("diff-error");
-    scheduleDiff(0);
+    const ics = await api().EventICS(
+      lastShift.iso,
+      zone,
+      lastShift.resultHuman.split(" (")[0],
+      buildShiftText(lastShift),
+      allDay
+    );
+    await saveICS(ics, $("export-shift"));
   } catch (err) {
-    showError("diff-error", cleanError(err));
+    showError("shift-error", cleanError(err));
   }
 }
 
-async function loadZones() {
-  const zones = await api().Zones();
-  const select = $("zone-select");
-  select.replaceChildren();
+// ------------------------------------------------------------------------ edad
 
-  const groups = new Map();
-  for (const item of zones) {
-    let group = groups.get(item.group);
-    if (!group) {
-      group = document.createElement("optgroup");
-      group.label = item.group;
-      groups.set(item.group, group);
-      select.append(group);
+function renderAge(result) {
+  lastAge = result;
+  $("age-big").textContent = result.human;
+  $("age-reference").textContent = $("age-today").checked ? "referencia: hoy" : `referencia: ${$("age-at").value}`;
+  const grid = $("age-grid");
+  grid.replaceChildren();
+  const entries = [
+    ["Días vividos", nf0.format(result.totalDays)],
+    ["Próximo cumpleaños", result.nextBirthday],
+    ["Día de la semana", capitalize(result.nextWeekday)],
+    ["Cumplirá", `${result.turning} años`],
+    [result.isBirthday ? "Hoy" : "Faltan", result.isBirthday ? "¡Felicidades!" : `${nf0.format(result.daysToNext)} días`],
+  ];
+  for (const [label, value] of entries) {
+    const cell = document.createElement("div");
+    cell.className = "feature-cell";
+    const l = document.createElement("span");
+    l.className = "feature-cell-label";
+    l.textContent = label;
+    const v = document.createElement("strong");
+    v.className = "feature-cell-value";
+    v.textContent = value;
+    cell.append(l, v);
+    grid.append(cell);
+  }
+  renderWarning("age-warning", result.warning);
+  announce(
+    "age-announce",
+    `${result.years} años, ${result.months} meses y ${result.days} días. ` +
+      (result.isBirthday
+        ? `Hoy cumple ${result.turning} años.`
+        : `Próximo cumpleaños: ${result.nextBirthday}, dentro de ${result.daysToNext} días.`)
+  );
+  $("age-empty").hidden = true;
+  reveal($("age-result"));
+}
+
+async function calcAge(record = false) {
+  if (!ready) return;
+  clearError("age-error");
+  const birth = $("age-birth").value;
+  if (!birth) {
+    $("age-result").hidden = true;
+    $("age-empty").hidden = false;
+    showError("age-error", "Introduce la fecha de nacimiento.");
+    return;
+  }
+  const at = $("age-today").checked ? "" : $("age-at").value;
+  if (!at && !$("age-today").checked) {
+    showError("age-error", "Elige una fecha de referencia o marca «Usar hoy».");
+    return;
+  }
+
+  const button = $("age-calc");
+  button.disabled = true;
+  button.textContent = "Calculando…";
+  try {
+    const result = await api().Age(birth, at, zone);
+    renderAge(result);
+    if (record) {
+      pushHistory({
+        kind: "age",
+        label: `${result.years} años, ${result.months} meses y ${result.days} días`,
+        zone,
+        data: { birth, at },
+      });
     }
-
-    const option = document.createElement("option");
-    option.value = item.id;
-    option.textContent = item.city;
-    option.title =
-      item.id === "UTC"
-        ? "UTC"
-        : `${item.id} · ${item.abbr} ${item.offset}${item.dst ? " · verano" : ""}`;
-    group.append(option);
+  } catch (err) {
+    showError("age-error", cleanError(err));
+  } finally {
+    button.disabled = false;
+    button.textContent = "Calcular edad";
+    saveState();
   }
-
-  select.value = zone;
 }
 
-async function updateZone() {
-  const state = await api().Zone(zone);
-  zoneText = state.id === "UTC" ? `UTC · ${state.offset}` : `${state.city} · ${state.text}`;
-  $("zone-chip").textContent = state.text;
-  $("zone-chip").title =
-    state.id === "local"
-      ? `Hora local · ${state.text}`
-      : `${state.id} · ${state.text}${state.dst ? " · horario de verano" : ""}`;
-  $("zone-chip").classList.toggle("is-dst", state.dst);
-  $("footer-zone").textContent = zoneText;
-  $("result-zone").textContent = hasDiff ? state.text : "";
-  const note = $("panel-zone");
-  if (note) note.textContent = state.text;
+function buildAgeText(result) {
+  const parts = [`Edad: ${result.human}.`];
+  parts.push(`Días vividos: ${nf0.format(result.totalDays)}.`);
+  parts.push(
+    result.isBirthday
+      ? `Hoy cumple ${result.turning} años.`
+      : `Próximo cumpleaños: ${result.nextBirthday} (${result.nextWeekday}), dentro de ${result.daysToNext} días; cumplirá ${result.turning}.`
+  );
+  if (result.warning) parts.push(result.warning);
+  if (zoneText) parts.push(`Zona: ${zoneText}.`);
+  return parts.join("\n");
 }
+
+// ----------------------------------------------------------------- laborables
+
+function holidayManual() {
+  return $("work-holidays")
+    .value.split(/[,;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function countryName(id) {
+  const option = $("work-country").querySelector(`option[value="${id}"]`);
+  return option ? option.textContent : id;
+}
+
+async function loadCountries() {
+  const countries = await api().Countries();
+  const select = $("work-country");
+  select.replaceChildren();
+  for (const country of countries) {
+    const option = document.createElement("option");
+    option.value = country.id;
+    option.textContent = country.name;
+    option.title = country.note || "";
+    select.append(option);
+  }
+}
+
+function renderHolidays(list) {
+  const wrap = $("work-holiday-list");
+  wrap.replaceChildren();
+  if (!list || !list.length) {
+    const empty = document.createElement("p");
+    empty.className = "history-empty";
+    empty.textContent = "Sin festivos en el rango.";
+    wrap.append(empty);
+    return;
+  }
+  for (const holiday of list) {
+    const row = document.createElement("div");
+    row.className = "holiday-item";
+    const date = document.createElement("span");
+    date.textContent = holiday.date;
+    const name = document.createElement("span");
+    name.textContent = holiday.name;
+    row.append(date, name);
+    wrap.append(row);
+  }
+}
+
+function renderWork(result) {
+  lastWork = result;
+  $("work-big").textContent = `${nf0.format(result.workdays)} ${result.workdays === 1 ? "día laborable" : "días laborables"}`;
+  $("work-range").textContent = `${result.startHuman.split(" (")[0]} → ${result.endHuman.split(" (")[0]}`;
+  const grid = $("work-grid");
+  grid.replaceChildren();
+  const entries = [
+    ["Días naturales", nf0.format(result.naturalDays)],
+    ["País", result.country ? countryName(result.country) : "Sin festivos"],
+    ["Festivos", String(result.holidays.length)],
+  ];
+  for (const [label, value] of entries) {
+    const cell = document.createElement("div");
+    cell.className = "feature-cell";
+    const l = document.createElement("span");
+    l.className = "feature-cell-label";
+    l.textContent = label;
+    const v = document.createElement("strong");
+    v.className = "feature-cell-value";
+    v.textContent = value;
+    cell.append(l, v);
+    grid.append(cell);
+  }
+  renderHolidays(result.holidays);
+  announce("work-announce", `${result.workdays} días laborables entre ${result.startHuman} y ${result.endHuman}.`);
+  $("work-empty").hidden = true;
+  reveal($("work-result"));
+}
+
+async function calcWork(record = false) {
+  if (!ready) return;
+  clearError("work-error");
+  if (!$("work-start").value || !$("work-end").value) {
+    $("work-result").hidden = true;
+    $("work-empty").hidden = false;
+    showError("work-error", "Introduce las dos fechas del rango.");
+    return;
+  }
+  const button = $("work-calc");
+  button.disabled = true;
+  button.textContent = "Contando…";
+  try {
+    const result = await api().Workdays(
+      $("work-start").value,
+      $("work-end").value,
+      zone,
+      $("work-country").value,
+      holidayManual(),
+      $("work-inclusive").checked
+    );
+    renderWork(result);
+    if (record) {
+      pushHistory({
+        kind: "work",
+        label: `${result.workdays} laborables · ${result.startHuman.split(" (")[0]} → ${result.endHuman.split(" (")[0]}`,
+        zone,
+        data: {
+          start: $("work-start").value,
+          end: $("work-end").value,
+          country: $("work-country").value,
+          holidays: $("work-holidays").value,
+          inclusive: $("work-inclusive").checked,
+        },
+      });
+    }
+  } catch (err) {
+    showError("work-error", cleanError(err));
+  } finally {
+    button.disabled = false;
+    button.textContent = "Contar laborables";
+    saveState();
+  }
+}
+
+function renderWorkShift(result) {
+  lastWorkShift = result;
+  $("work-shift-op").textContent = `${capitalize(result.operation)} ${result.workdays} ${result.workdays === 1 ? "día laborable" : "días laborables"}`;
+  $("work-shift-value").textContent = result.resultHuman;
+  $("work-shift-sub").textContent = `Desde ${result.startHuman} · ${result.iso}`;
+  reveal($("work-shift-result"));
+}
+
+async function doWorkShift(operation, record = false) {
+  if (!ready) return;
+  clearError("work-shift-error");
+  const base = $("work-base").value;
+  const days = Number($("work-days").value);
+  if (!base) {
+    $("work-shift-result").hidden = true;
+    showError("work-shift-error", "Introduce la fecha base.");
+    return;
+  }
+  if (!Number.isFinite(days) || days < 1) {
+    showError("work-shift-error", "Introduce un número de días laborables mayor que cero.");
+    return;
+  }
+  const signed = operation === "sub" ? -Math.trunc(days) : Math.trunc(days);
+  const button = $(operation === "sub" ? "work-sub" : "work-add");
+  const other = $(operation === "sub" ? "work-add" : "work-sub");
+  const label = button.textContent;
+  button.disabled = true;
+  other.disabled = true;
+  button.textContent = operation === "sub" ? "Restando…" : "Sumando…";
+  try {
+    const result = await api().AddWorkdays(
+      base,
+      signed,
+      zone,
+      $("work-country").value,
+      holidayManual()
+    );
+    renderWorkShift(result);
+    if (record) {
+      pushHistory({
+        kind: "workadd",
+        label: `${capitalize(result.operation)} ${result.workdays} laborables · ${result.resultHuman.split(" (")[0]}`,
+        zone,
+        data: {
+          base,
+          days: String(days),
+          operation,
+          country: $("work-country").value,
+          holidays: $("work-holidays").value,
+        },
+      });
+    }
+  } catch (err) {
+    showError("work-shift-error", cleanError(err));
+  } finally {
+    button.disabled = false;
+    other.disabled = false;
+    button.textContent = label;
+    saveState();
+  }
+}
+
+function buildWorkText(result) {
+  const parts = [
+    `${result.workdays} ${result.workdays === 1 ? "día laborable" : "días laborables"} entre ${result.startHuman} y ${result.endHuman}.`,
+    `${result.naturalDays} días naturales.`,
+  ];
+  if (result.holidays.length) {
+    parts.push(`Festivos: ${result.holidays.map((h) => `${h.date} ${h.name}`).join("; ")}.`);
+  }
+  if (result.country) parts.push(`País: ${countryName(result.country)}.`);
+  if (zoneText) parts.push(`Zona: ${zoneText}.`);
+  return parts.join("\n");
+}
+
+// ---------------------------------------------------------------------- zonas
+
+function renderConvert(result) {
+  lastConvert = result;
+  $("convert-from-label").textContent = result.fromZone;
+  $("convert-from-value").textContent = result.fromHuman;
+  $("convert-from-zone").textContent = result.fromISO;
+  $("convert-to-label").textContent = result.toZone;
+  $("convert-to-value").textContent = result.toHuman;
+  $("convert-to-zone").textContent = result.toISO;
+  $("convert-diff").textContent = "mismo instante, otra hora de pared";
+  renderWarning("convert-warning", result.warning);
+  announce("convert-announce", `${result.fromHuman} en ${result.fromZone} son ${result.toHuman} en ${result.toZone}.`);
+  $("convert-empty").hidden = true;
+  reveal($("convert-result"));
+}
+
+async function runConvert(record = false) {
+  if (!ready) return;
+  clearError("convert-error");
+  const date = $("convert-date").value;
+  if (!date) {
+    $("convert-result").hidden = true;
+    $("convert-empty").hidden = false;
+    showError("convert-error", "Introduce una fecha y hora.");
+    return;
+  }
+  const button = $("convert-run");
+  button.disabled = true;
+  button.textContent = "Convirtiendo…";
+  try {
+    const result = await api().Convert(date, $("convert-from").value, $("convert-to").value);
+    renderConvert(result);
+    if (record) {
+      pushHistory({
+        kind: "convert",
+        label: `${result.fromHuman.split(" (")[0]} · ${$("convert-from").value} → ${$("convert-to").value}`,
+        zone,
+        data: { date, from: $("convert-from").value, to: $("convert-to").value },
+      });
+    }
+  } catch (err) {
+    showError("convert-error", cleanError(err));
+  } finally {
+    button.disabled = false;
+    button.textContent = "Convertir";
+    saveState();
+  }
+}
+
+function buildConvertText(result) {
+  return [
+    `${result.fromHuman} (${result.fromZone}).`,
+    `${result.toHuman} (${result.toZone}).`,
+    `ISO 8601: ${result.fromISO} → ${result.toISO}.`,
+    result.warning || "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// ---------------------------------------------------------------------- ficha
+
+function renderFacts(result) {
+  lastFacts = result;
+  $("facts-long").textContent = result.long;
+  $("facts-human").textContent = result.human;
+  const grid = $("facts-grid");
+  grid.replaceChildren();
+  const entries = [
+    ["Día de la semana", capitalize(result.weekday)],
+    ["Semana ISO", `${result.isoWeek} de ${result.isoYear}`],
+    ["Día del año", `${result.dayOfYear} de ${result.daysInYear}`],
+    ["Trimestre", `T${result.quarter}`],
+    ["Días del mes", String(result.daysInMonth)],
+    ["Quedan del mes", String(result.daysLeftInMonth)],
+    ["Quedan del año", String(result.daysLeftInYear)],
+    ["Año bisiesto", result.leapYear ? "Sí" : "No"],
+  ];
+  for (const [label, value] of entries) {
+    const cell = document.createElement("div");
+    cell.className = "feature-cell";
+    const l = document.createElement("span");
+    l.className = "feature-cell-label";
+    l.textContent = label;
+    const v = document.createElement("strong");
+    v.className = "feature-cell-value";
+    v.textContent = value;
+    cell.append(l, v);
+    grid.append(cell);
+  }
+  announce("facts-announce", `${result.long}. Semana ISO ${result.isoWeek} de ${result.isoYear}. Día ${result.dayOfYear} de ${result.daysInYear}.`);
+  $("facts-empty").hidden = true;
+  reveal($("facts-result"));
+}
+
+async function runFacts(record = false) {
+  if (!ready) return;
+  clearError("facts-error");
+  if (!$("facts-date").value) {
+    $("facts-result").hidden = true;
+    $("facts-empty").hidden = false;
+    showError("facts-error", "Introduce una fecha.");
+    return;
+  }
+  const button = $("facts-run");
+  button.disabled = true;
+  button.textContent = "Consultando…";
+  try {
+    const result = await api().Facts($("facts-date").value, zone);
+    renderFacts(result);
+    if (record) {
+      pushHistory({
+        kind: "facts",
+        label: result.long,
+        zone,
+        data: { date: $("facts-date").value },
+      });
+    }
+  } catch (err) {
+    showError("facts-error", cleanError(err));
+  } finally {
+    button.disabled = false;
+    button.textContent = "Ver ficha";
+    saveState();
+  }
+}
+
+function buildFactsText(result) {
+  return [
+    result.long,
+    `Día de la semana: ${result.weekday}.`,
+    `Semana ISO: ${result.isoWeek} de ${result.isoYear}.`,
+    `Día del año: ${result.dayOfYear} de ${result.daysInYear}.`,
+    `Trimestre: T${result.quarter}.`,
+    `Días del mes: ${result.daysInMonth}. Quedan ${result.daysLeftInMonth}.`,
+    `Quedan ${result.daysLeftInYear} días del año.`,
+    `Año bisiesto: ${result.leapYear ? "sí" : "no"}.`,
+    zoneText ? `Zona: ${zoneText}.` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// ----------------------------------------------------------------------- JARL
+
+let jarlAudio = (() => {
+  try {
+    const audio = new Audio("assets/jarl.mp3");
+    audio.preload = "auto";
+    audio.volume = 0.9;
+    return audio;
+  } catch {
+    return null;
+  }
+})();
+
+function jarl() {
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!reduced) {
+    document.querySelector(".jarl")?.remove();
+    const el = document.createElement("span");
+    el.className = "jarl";
+    el.textContent = "¡JARL!";
+    el.setAttribute("aria-hidden", "true");
+    document.querySelector(".date-row").append(el);
+    setTimeout(() => el.remove(), 950);
+  }
+  if (!soundEnabled) return;
+  try {
+    if (!jarlAudio) {
+      jarlAudio = new Audio("assets/jarl.mp3");
+      jarlAudio.preload = "auto";
+      jarlAudio.volume = 0.9;
+    }
+    jarlAudio.currentTime = 0;
+    jarlAudio.play().catch(() => {});
+  } catch {
+    // Sin audio disponible: el JARL visual basta.
+  }
+}
+
+function renderSound() {
+  const button = $("sound-toggle");
+  button.setAttribute("aria-pressed", String(soundEnabled));
+  button.title = soundEnabled ? "Silenciar el ¡JARL!" : "Activar el sonido del ¡JARL!";
+  button.classList.toggle("is-muted", !soundEnabled);
+}
+
+// ----------------------------------------------------------------------- tabs
+
+function activateTab(name, focus, auto = true) {
+  if (!tabNames.includes(name)) name = "diff";
+  currentTab = name;
+  tabNames.forEach((item) => {
+    const tab = $(`tab-${item}`);
+    const panel = $(`panel-${item}`);
+    const active = item === name;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+    panel.hidden = !active;
+    if (active) {
+      panel.classList.remove("is-entering");
+      void panel.offsetWidth;
+      panel.classList.add("is-entering");
+    }
+  });
+  if (focus) $(`tab-${name}`).focus();
+  saveState();
+  if (!auto || !ready) return;
+  if (name === "age" && $("age-birth").value) calcAge(false);
+  if (name === "work" && $("work-start").value && $("work-end").value) calcWork(false);
+  if (name === "convert" && $("convert-date").value) runConvert(false);
+  if (name === "facts" && $("facts-date").value) runFacts(false);
+}
+
+function setupTabs() {
+  tabNames.forEach((name) => {
+    const tab = $(`tab-${name}`);
+    tab.addEventListener("click", () => activateTab(name, false, true));
+    tab.addEventListener("keydown", (event) => {
+      const index = tabNames.indexOf(name);
+      let next = null;
+      if (event.key === "ArrowRight") {
+        next = tabNames[(index + 1) % tabNames.length];
+      } else if (event.key === "ArrowLeft") {
+        next = tabNames[(index - 1 + tabNames.length) % tabNames.length];
+      } else if (event.key === "Home") {
+        next = tabNames[0];
+      } else if (event.key === "End") {
+        next = tabNames[tabNames.length - 1];
+      }
+      if (next) {
+        event.preventDefault();
+        activateTab(next, true, true);
+      }
+    });
+  });
+}
+
+// --------------------------------------------------------------- arranque/UI
 
 async function setupDefaults() {
   let now = await api().Now(zone);
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(now)) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(now)) {
     now = toInputValue(new Date());
   }
 
-  $("date2").value = now;
-  $("date1").value = shiftInputDays(now, -30);
-  $("shift-date").value = now;
+  if (!$("date2").value) $("date2").value = now;
+  if (!$("date1").value) $("date1").value = shiftInputDays($("date2").value, -30);
+  if (!$("shift-date").value) $("shift-date").value = $("date2").value;
+  if (!$("shift-duration").value) $("shift-duration").value = "1 mes";
+  if (!$("work-end").value) $("work-end").value = $("date2").value;
+  if (!$("work-start").value) $("work-start").value = shiftInputDays($("work-end").value, -7);
+  if (!$("work-base").value) $("work-base").value = $("date2").value;
+  if (!$("work-days").value) $("work-days").value = "10";
+  if (!$("convert-date").value) $("convert-date").value = $("date2").value;
+  if (!$("facts-date").value) $("facts-date").value = $("date2").value;
+  if (!$("age-at").value) $("age-at").value = now.slice(0, 10);
+
+  if (!$("convert-from").value) $("convert-from").value = zone;
+  if (!$("convert-to").value) {
+    $("convert-to").value = zonesById.has("America/Bogota") ? "America/Bogota" : "UTC";
+  }
+
+  $("age-at").disabled = $("age-today").checked;
 }
 
 function wireEvents() {
-  $("calc").addEventListener("click", calcDiff);
-  $("add").addEventListener("click", () => doShift("add"));
-  $("sub").addEventListener("click", () => doShift("sub"));
-  $("copy-result").addEventListener("click", copyResult);
-  $("copy-shift").addEventListener("click", copyShiftResult);
+  $("calc").addEventListener("click", () => calcDiff(true));
+  $("add").addEventListener("click", () => doShift("add", true));
+  $("sub").addEventListener("click", () => doShift("sub", true));
+  $("copy-result").addEventListener("click", () => lastDiff && copyWithFeedback($("copy-result"), buildDiffText(lastDiff)));
+  $("export-diff").addEventListener("click", exportDiff);
+  $("favorite-diff").addEventListener("click", saveFavorite);
+  $("copy-shift").addEventListener("click", () => lastShift && copyWithFeedback($("copy-shift"), buildShiftText(lastShift)));
+  $("export-shift").addEventListener("click", exportShift);
+  $("copy-age").addEventListener("click", () => lastAge && copyWithFeedback($("copy-age"), buildAgeText(lastAge)));
+  $("copy-work").addEventListener("click", () => lastWork && copyWithFeedback($("copy-work"), buildWorkText(lastWork)));
+  $("copy-work-shift").addEventListener("click", () => {
+    if (!lastWorkShift) return;
+    const text = `${capitalize(lastWorkShift.operation)} ${lastWorkShift.workdays} días laborables: ${lastWorkShift.resultHuman}. Desde ${lastWorkShift.startHuman}. ISO: ${lastWorkShift.iso}.`;
+    copyWithFeedback($("copy-work-shift"), text);
+  });
+  $("copy-convert").addEventListener("click", () => lastConvert && copyWithFeedback($("copy-convert"), buildConvertText(lastConvert)));
+  $("copy-facts").addEventListener("click", () => lastFacts && copyWithFeedback($("copy-facts"), buildFactsText(lastFacts)));
+
   $("totals-toggle").addEventListener("click", () => {
     totalsExpanded = !totalsExpanded;
     applyTotalsVisibility();
@@ -621,34 +1586,51 @@ function wireEvents() {
     $("date1").value = $("date2").value;
     $("date2").value = first;
     jarl();
-    if (hasDiff) calcDiff();
+    if (hasDiff) calcDiff(false);
+    saveState();
   });
 
-  $("now1").addEventListener("click", () => setNow($("date1")));
-  $("now2").addEventListener("click", () => setNow($("date2")));
+  $("now1").addEventListener("click", () => setNow($("date1"), "diff-error"));
+  $("now2").addEventListener("click", () => setNow($("date2"), "diff-error"));
 
   $("inclusive").addEventListener("change", () => {
-    if (hasDiff) calcDiff();
+    if (hasDiff) calcDiff(false);
+    saveState();
   });
 
-  $("zone-select").addEventListener("change", async (event) => {
-    zone = event.target.value;
-    try {
-      await updateZone();
-    } catch (err) {
-      // El error cae en la pestaña que está a la vista, no en la oculta.
-      showError($("panel-shift").hidden ? "diff-error" : "shift-error", cleanError(err));
+  $("zone-mode").addEventListener("change", () => {
+    zoneMode = $("zone-mode").value;
+    saveState();
+  });
+
+  $("sound-toggle").addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    renderSound();
+    saveState();
+    if (soundEnabled) jarl();
+  });
+
+  $("zone-select").addEventListener("change", async () => {
+    const id = resolveZoneText($("zone-select").value);
+    if (!id) {
+      $("zone-select").value = zoneDisplay(zone);
+      flashZoneError();
       return;
     }
-    if (hasDiff) calcDiff();
-    if (hasShift && lastOperation) doShift(lastOperation);
+    await changeZone(id);
+  });
+  $("zone-select").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      $("zone-select").blur();
+    }
   });
 
   for (const id of ["date1", "date2"]) {
     $(id).addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        calcDiff();
+        calcDiff(true);
       }
     });
     $(id).addEventListener("input", () => {
@@ -662,11 +1644,68 @@ function wireEvents() {
     $(id).addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        // Enter repite la última operación usada; la primera vez, suma.
-        doShift(lastOperation || "add");
+        doShift(lastOperation || "add", true);
       }
     });
     $(id).addEventListener("input", () => clearError("shift-error"));
+  }
+
+  for (const button of document.querySelectorAll("#shift-examples .example")) {
+    button.addEventListener("click", () => {
+      $("shift-duration").value = button.dataset.duration;
+      clearError("shift-error");
+      doShift(lastOperation || "add", true);
+    });
+  }
+
+  $("age-today").addEventListener("change", () => {
+    $("age-at").disabled = $("age-today").checked;
+    saveState();
+    if ($("age-birth").value) calcAge(false);
+  });
+  $("age-calc").addEventListener("click", () => calcAge(true));
+  for (const id of ["age-birth", "age-at"]) {
+    $(id).addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        calcAge(true);
+      }
+    });
+  }
+
+  $("work-calc").addEventListener("click", () => calcWork(true));
+  $("work-add").addEventListener("click", () => doWorkShift("add", true));
+  $("work-sub").addEventListener("click", () => doWorkShift("sub", true));
+  $("work-days").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      doWorkShift("add", true);
+    }
+  });
+
+  $("convert-run").addEventListener("click", () => runConvert(true));
+  $("convert-swap").addEventListener("click", () => {
+    const from = $("convert-from").value;
+    $("convert-from").value = $("convert-to").value;
+    $("convert-to").value = from;
+    if ($("convert-date").value) runConvert(false);
+    saveState();
+  });
+
+  $("facts-run").addEventListener("click", () => runFacts(true));
+  $("facts-now").addEventListener("click", () => setNow($("facts-date"), "facts-error"));
+
+  const allIds = [
+    "inclusive", "date1", "date2", "shift-date", "shift-duration",
+    "age-birth", "age-at", "age-today", "work-start", "work-end", "work-base",
+    "work-days", "work-country", "work-holidays", "work-inclusive",
+    "convert-date", "convert-from", "convert-to", "facts-date",
+  ];
+  for (const id of allIds) {
+    const el = $(id);
+    if (!el) continue;
+    el.addEventListener("input", saveState);
+    el.addEventListener("change", saveState);
   }
 }
 
@@ -680,18 +1719,37 @@ async function waitForBindings() {
   return false;
 }
 
+async function updateVersion() {
+  try {
+    const v = await api().Version();
+    $("app-version").textContent = v && v !== "dev" ? `v${v}` : "";
+  } catch {
+    // La versión es informativa.
+  }
+}
+
 async function boot() {
   if (!(await waitForBindings())) {
     showError("diff-error", "No se pudo conectar con el backend de la aplicación.");
     return;
   }
 
-  ready = true;
   window.scrollTo(0, 0);
+  loadLists();
   await loadZones();
+  await loadCountries();
+  restoreState();
+  $("zone-mode").value = zoneMode;
+  renderSound();
   await updateZone();
   await setupDefaults();
-  await calcDiff();
+  ready = true;
+  renderHistory();
+  activateTab(currentTab, false, false);
+  await calcDiff(false);
+  await updateVersion();
+  if (currentTab !== "diff") activateTab(currentTab, false, true);
+  saveState();
   window.scrollTo(0, 0);
   setTimeout(() => window.scrollTo(0, 0), 250);
 }
@@ -699,5 +1757,6 @@ async function boot() {
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   wireEvents();
+  wireHistory();
   boot().catch((err) => showError("diff-error", cleanError(err)));
 });

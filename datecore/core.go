@@ -13,19 +13,21 @@ import (
 
 // Delta es una duración expresada en unidades de calendario.
 type Delta struct {
-	Years   int
-	Months  int
-	Weeks   int
-	Days    int
-	Hours   int
-	Minutes int
-	Seconds int
+	Years        int
+	Months       int
+	Weeks        int
+	Days         int
+	Hours        int
+	Minutes      int
+	Seconds      int
+	Milliseconds int
 }
 
 // Negative indica si alguna unidad es negativa.
 func (d Delta) Negative() bool {
 	return d.Years < 0 || d.Months < 0 || d.Weeks < 0 ||
-		d.Days < 0 || d.Hours < 0 || d.Minutes < 0 || d.Seconds < 0
+		d.Days < 0 || d.Hours < 0 || d.Minutes < 0 || d.Seconds < 0 ||
+		d.Milliseconds < 0
 }
 
 // Abs devuelve una copia con todas las unidades en valor absoluto.
@@ -37,26 +39,28 @@ func (d Delta) Abs() Delta {
 		return n
 	}
 	return Delta{
-		Years:   abs(d.Years),
-		Months:  abs(d.Months),
-		Weeks:   abs(d.Weeks),
-		Days:    abs(d.Days),
-		Hours:   abs(d.Hours),
-		Minutes: abs(d.Minutes),
-		Seconds: abs(d.Seconds),
+		Years:        abs(d.Years),
+		Months:       abs(d.Months),
+		Weeks:        abs(d.Weeks),
+		Days:         abs(d.Days),
+		Hours:        abs(d.Hours),
+		Minutes:      abs(d.Minutes),
+		Seconds:      abs(d.Seconds),
+		Milliseconds: abs(d.Milliseconds),
 	}
 }
 
 // Negated devuelve la duración con el signo invertido.
 func (d Delta) Negated() Delta {
 	return Delta{
-		Years:   -d.Years,
-		Months:  -d.Months,
-		Weeks:   -d.Weeks,
-		Days:    -d.Days,
-		Hours:   -d.Hours,
-		Minutes: -d.Minutes,
-		Seconds: -d.Seconds,
+		Years:        -d.Years,
+		Months:       -d.Months,
+		Weeks:        -d.Weeks,
+		Days:         -d.Days,
+		Hours:        -d.Hours,
+		Minutes:      -d.Minutes,
+		Seconds:      -d.Seconds,
+		Milliseconds: -d.Milliseconds,
 	}
 }
 
@@ -76,6 +80,7 @@ func (d Delta) String() string {
 	add(d.Hours, "hora", "horas")
 	add(d.Minutes, "minuto", "minutos")
 	add(d.Seconds, "segundo", "segundos")
+	add(d.Milliseconds, "milisegundo", "milisegundos")
 	return joinParts(parts, "0 días")
 }
 
@@ -136,8 +141,10 @@ func ComputeTotals(absSeconds float64) Totals {
 var dateLayouts = []string{
 	time.RFC3339Nano,
 	time.RFC3339,
+	"2006-01-02T15:04:05.999999999",
 	"2006-01-02T15:04:05",
 	"2006-01-02T15:04",
+	"2006-01-02 15:04:05.999999999",
 	"2006-01-02 15:04:05",
 	"2006-01-02 15:04",
 	"2006-01-02",
@@ -159,24 +166,186 @@ var dateLayouts = []string{
 
 // durationToken reconoce un número seguido de una unidad (ej.: "2mes").
 // Las alternativas largas van primero para que "mes" no se confunda con "m".
-var durationToken = regexp.MustCompile(`(?i)(\d+)(años?|anos?|a|years?|yrs?|y|meses|mes|months?|mons?|mo|semanas?|sem|weeks?|w|días?|dias?|days?|d|horas?|hours?|hrs?|h|minutos?|minutes?|mins?|m|segundos?|segs?|seconds?|secs?|s)`)
+var durationToken = regexp.MustCompile(`(?i)(\d+)(años?|anos?|a|years?|yrs?|y|meses|mes|months?|mons?|mo|semanas?|sem|weeks?|w|días?|dias?|days?|d|horas?|hours?|hrs?|h|milisegundos?|msegs?|ms|minutos?|minutes?|mins?|m|segundos?|segs?|seconds?|secs?|s)`)
 
-// ParseDate interpreta una fecha en varios formatos habituales.
+var relativeDate = regexp.MustCompile(`(?i)^(?:en|dentro\s+de)\s+(\d+|un|una|uno)\s+(días?|dias?|semanas?|meses?|años?|anos?|horas?|minutos?|segundos?)$`)
+var relativePast = regexp.MustCompile(`(?i)^hace\s+(\d+|un|una|uno)\s+(días?|dias?|semanas?|meses?|años?|anos?|horas?|minutos?|segundos?)$`)
+var spanishDate = regexp.MustCompile(`(?i)^(\d{1,2})\s+(?:de\s+)?([a-záéíóúüñ]+)(?:\s+(?:de\s+|del\s+)?(\d{4}))?(?:\s+(?:a\s+las?\s+)?(\d{1,2}):(\d{2})(?::(\d{2}))?)?$`)
+
+var weekdayNames = map[string]time.Weekday{
+	"domingo": time.Sunday, "lunes": time.Monday, "martes": time.Tuesday,
+	"miercoles": time.Wednesday, "jueves": time.Thursday,
+	"viernes": time.Friday, "sabado": time.Saturday,
+}
+
+var monthNames = map[string]time.Month{
+	"enero": time.January, "ene": time.January,
+	"febrero": time.February, "feb": time.February,
+	"marzo": time.March, "mar": time.March,
+	"abril": time.April, "abr": time.April,
+	"mayo": time.May, "may": time.May,
+	"junio": time.June, "jun": time.June,
+	"julio": time.July, "jul": time.July,
+	"agosto": time.August, "ago": time.August,
+	"septiembre": time.September, "setiembre": time.September, "sep": time.September, "set": time.September,
+	"octubre": time.October, "oct": time.October,
+	"noviembre": time.November, "nov": time.November,
+	"diciembre": time.December, "dic": time.December,
+}
+
+// sinAcentos normaliza una palabra para compararla sin depender de tildes.
+func sinAcentos(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case 'á', 'à', 'ä', 'â':
+			return 'a'
+		case 'é', 'è', 'ë', 'ê':
+			return 'e'
+		case 'í', 'ì', 'ï', 'î':
+			return 'i'
+		case 'ó', 'ò', 'ö', 'ô':
+			return 'o'
+		case 'ú', 'ù', 'ü', 'û':
+			return 'u'
+		case 'ñ':
+			return 'n'
+		}
+		return r
+	}, strings.ToLower(s))
+}
+
+func relativeDelta(unit string) Delta {
+	switch sinAcentos(strings.TrimSpace(unit)) {
+	case "dia", "dias":
+		return Delta{Days: 1}
+	case "semana", "semanas":
+		return Delta{Weeks: 1}
+	case "mes", "meses":
+		return Delta{Months: 1}
+	case "ano", "anos":
+		return Delta{Years: 1}
+	case "hora", "horas":
+		return Delta{Hours: 1}
+	case "minuto", "minutos":
+		return Delta{Minutes: 1}
+	case "segundo", "segundos":
+		return Delta{Seconds: 1}
+	}
+	return Delta{}
+}
+
+func nextWeekday(now time.Time, want time.Weekday) time.Time {
+	delta := (int(want) - int(now.Weekday()) + 7) % 7
+	if delta == 0 {
+		delta = 7
+	}
+	day := now.AddDate(0, 0, delta)
+	return time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, day.Location())
+}
+
+// numberOf acepta cifras o los artículos "un/una/uno".
+func numberOf(s string) (int, bool) {
+	if n, err := strconv.Atoi(s); err == nil {
+		return n, true
+	}
+	switch sinAcentos(strings.TrimSpace(s)) {
+	case "un", "una", "uno":
+		return 1, true
+	}
+	return 0, false
+}
+
+func parseNaturalDate(s string, loc *time.Location) (time.Time, bool, error) {
+	now := time.Now().In(loc).Truncate(time.Second)
+	low := strings.TrimSpace(strings.ToLower(s))
+	norm := sinAcentos(low)
+	switch norm {
+	case "hoy", "today":
+		return now, true, nil
+	case "ahora", "now":
+		return now, true, nil
+	case "ayer", "yesterday":
+		return now.AddDate(0, 0, -1), true, nil
+	case "manana", "tomorrow":
+		return now.AddDate(0, 0, 1), true, nil
+	case "anteayer":
+		return now.AddDate(0, 0, -2), true, nil
+	case "pasado manana":
+		return now.AddDate(0, 0, 2), true, nil
+	}
+
+	for _, re := range []struct {
+		pattern *regexp.Regexp
+		sign    int
+	}{{relativeDate, 1}, {relativePast, -1}} {
+		if m := re.pattern.FindStringSubmatch(low); m != nil {
+			n, ok := numberOf(m[1])
+			if !ok {
+				continue
+			}
+			d := relativeDelta(m[2])
+			d = Delta{
+				Days: d.Days * n, Weeks: d.Weeks * n, Months: d.Months * n,
+				Years: d.Years * n, Hours: d.Hours * n, Minutes: d.Minutes * n, Seconds: d.Seconds * n,
+			}
+			return ApplyDelta(now, d, re.sign), true, nil
+		}
+	}
+
+	// "lunes", "el próximo lunes", "siguiente lunes"…
+	weekdayText := norm
+	for _, prefix := range []string{"el ", "la ", "los ", "las ", "este ", "esta ", "proximo ", "proxima ", "siguiente "} {
+		weekdayText = strings.TrimPrefix(weekdayText, prefix)
+	}
+	if wd, ok := weekdayNames[weekdayText]; ok {
+		return nextWeekday(now, wd), true, nil
+	}
+
+	// "18 de noviembre de 2026", "18 nov 2026 a las 14:30"…
+	if m := spanishDate.FindStringSubmatch(low); m != nil {
+		day, _ := strconv.Atoi(m[1])
+		month, ok := monthNames[sinAcentos(m[2])]
+		if !ok {
+			return time.Time{}, false, nil
+		}
+		year := now.Year()
+		if m[3] != "" {
+			year, _ = strconv.Atoi(m[3])
+		}
+		hour, minute, second := 0, 0, 0
+		if m[4] != "" {
+			hour, _ = strconv.Atoi(m[4])
+			minute, _ = strconv.Atoi(m[5])
+			if m[6] != "" {
+				second, _ = strconv.Atoi(m[6])
+			}
+		}
+		t := time.Date(year, month, day, hour, minute, second, 0, loc)
+		if t.Day() != day || t.Month() != month || t.Year() != year || hour > 23 || minute > 59 || second > 59 {
+			return time.Time{}, true, fmt.Errorf("fecha no válida: %q", s)
+		}
+		return t, true, nil
+	}
+	return time.Time{}, false, nil
+}
+
+// ParseDate interpreta una fecha en varios formatos habituales, incluidos
+// atajos en español como "mañana", "en 3 días", "el próximo lunes" o
+// "18 de noviembre de 2026".
 func ParseDate(s string, loc *time.Location) (time.Time, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return time.Time{}, errors.New("fecha vacía")
 	}
-	switch strings.ToLower(s) {
-	case "hoy", "today", "ahora", "now":
-		return time.Now().In(loc).Truncate(time.Second), nil
+	if t, ok, err := parseNaturalDate(s, loc); ok {
+		return t, err
 	}
 	for _, layout := range dateLayouts {
 		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("fecha no válida: %q (prueba 2026-11-18, 18/11/2026 o \"hoy\")", s)
+	return time.Time{}, fmt.Errorf("fecha no válida: %q (prueba 2026-11-18, 18/11/2026, \"mañana\" o \"hoy\")", s)
 }
 
 var canonicalInput = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}`)
@@ -281,6 +450,8 @@ func ParseDelta(s string) (Delta, error) {
 			d.Days += n
 		case "h", "hora", "horas", "hour", "hours", "hr", "hrs":
 			d.Hours += n
+		case "ms", "mseg", "msegs", "milisegundo", "milisegundos":
+			d.Milliseconds += n
 		case "m", "min", "minuto", "minutos", "minute", "minutes", "mins":
 			d.Minutes += n
 		case "s", "seg", "segs", "segundo", "segundos", "sec", "secs", "second", "seconds":
@@ -342,7 +513,8 @@ func ApplyDelta(t time.Time, d Delta, sign int) time.Time {
 	t = AddDays(t, d.Weeks*7+d.Days)
 	dur := time.Duration(d.Hours)*time.Hour +
 		time.Duration(d.Minutes)*time.Minute +
-		time.Duration(d.Seconds)*time.Second
+		time.Duration(d.Seconds)*time.Second +
+		time.Duration(d.Milliseconds)*time.Millisecond
 	return t.Add(dur)
 }
 

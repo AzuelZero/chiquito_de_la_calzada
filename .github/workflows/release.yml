@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Pruebas
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+
+      - name: Pruebas de datecore y de la CLI
+        run: go test ./...
+
+      - name: Pruebas del backend de la GUI
+        run: go test -tags "gui desktop production" ./gui
+
+  build:
+    name: Compilar ${{ matrix.arch }}
+    needs: test
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            suffix: ""
+          - arch: arm64
+            suffix: "_arm64"
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+          cache: true
+
+      - name: Compilar los binarios
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+
+          # El recurso de icono se regenera para la arquitectura de destino.
+          # rsrc se ejecuta en la arquitectura del runner, antes de cambiar GOARCH.
+          Remove-Item gui/rsrc.syso -ErrorAction SilentlyContinue
+          go run github.com/akavel/rsrc@latest -arch "${{ matrix.arch }}" -ico gui/app.ico -o gui/rsrc.syso
+
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $env:GOOS = "windows"
+          $env:GOARCH = "${{ matrix.arch }}"
+          $env:CGO_ENABLED = "0"
+          go build -trimpath -ldflags "-s -w -X main.version=$version" -o "dist/chiquito_de_la_calzada_cli${{ matrix.suffix }}.exe" .
+          go build -tags "gui desktop production" -trimpath -ldflags "-H windowsgui -s -w -X main.version=$version" -o "dist/chiquito_de_la_calzada${{ matrix.suffix }}.exe" ./gui
+
+      - name: Guardar los binarios
+        uses: actions/upload-artifact@v4
+        with:
+          name: binarios-${{ matrix.arch }}
+          path: dist/*.exe
+          if-no-files-found: error
+
+  publish:
+    name: Publicar la release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Reunir los binarios
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Calcular SHA-256
+        working-directory: dist
+        run: sha256sum *.exe > SHA256SUMS.txt
+
+      - name: Crear la release en GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Chiquito de la Calzada $GITHUB_REF_NAME" \
+            --generate-notes

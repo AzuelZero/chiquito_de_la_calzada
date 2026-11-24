@@ -29,9 +29,25 @@
             <circle cx="12" cy="12" r="9" />
             <path d="M3 12h18M12 3c2.6 2.7 4 5.9 4 9s-1.4 6.3-4 9c-2.6-2.7-4-5.9-4-9s1.4-6.3 4-9Z" />
           </svg>
-          <select id="zone-select"></select>
+          <input id="zone-select" list="zone-list" type="text" spellcheck="false" autocomplete="off" />
+          <datalist id="zone-list"></datalist>
+        </label>
+        <label class="zone-mode" title="Qué hacer con las horas escritas al cambiar de zona">
+          <span class="sr-only">Al cambiar de zona</span>
+          <select id="zone-mode">
+            <option value="wall">Mantener hora</option>
+            <option value="instant">Conservar instante</option>
+          </select>
         </label>
         <div class="zone" id="zone-chip" title="Zona horaria activa">Hora local</div>
+        <button type="button" class="icon-button" id="sound-toggle" aria-pressed="true" title="Silenciar el ¡JARL!">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9v6h4l5 4V5L8 9H4Z" />
+            <path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />
+          </svg>
+          <span class="sr-only">Sonido</span>
+        </button>
+        <button type="button" class="ghost-button" id="history-open">Historial</button>
       </div>
     </header>
 
@@ -44,6 +60,22 @@
         <button class="tab" id="tab-shift" type="button" role="tab" aria-selected="false" aria-controls="panel-shift" tabindex="-1">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v6M9 8h6M5 17h14" /></svg>
           Sumar o restar
+        </button>
+        <button class="tab" id="tab-age" type="button" role="tab" aria-selected="false" aria-controls="panel-age" tabindex="-1">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 20v-6h12v6M12 14V8M12 8c-2 0-3-1-3-2.5S10 3 12 3s3 1 3 2.5S14 8 12 8Z" /></svg>
+          Edad
+        </button>
+        <button class="tab" id="tab-work" type="button" role="tab" aria-selected="false" aria-controls="panel-work" tabindex="-1">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v11H4zM9 8V6h6v2M4 12h16" /></svg>
+          Laborables
+        </button>
+        <button class="tab" id="tab-convert" type="button" role="tab" aria-selected="false" aria-controls="panel-convert" tabindex="-1">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M8 5c2 2 3 4.5 3 7s-1 5-3 7M16 5c-2 2-3 4.5-3 7s1 5 3 7" /></svg>
+          Zonas
+        </button>
+        <button class="tab" id="tab-facts" type="button" role="tab" aria-selected="false" aria-controls="panel-facts" tabindex="-1">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 9h16M8 13h3M13 13h3M8 17h3" /></svg>
+          Ficha
         </button>
       </div>
 
@@ -60,7 +92,7 @@
             <label class="field">
               <span>Fecha 1</span>
               <div class="date-wrap">
-                <input type="datetime-local" id="date1" step="60" />
+                <input type="datetime-local" id="date1" step="1" />
                 <button type="button" class="ghost" id="now1" title="Usar la fecha y hora actuales">Ahora</button>
               </div>
             </label>
@@ -74,7 +106,7 @@
             <label class="field">
               <span>Fecha 2</span>
               <div class="date-wrap">
-                <input type="datetime-local" id="date2" step="60" />
+                <input type="datetime-local" id="date2" step="1" />
                 <button type="button" class="ghost" id="now2" title="Usar la fecha y hora actuales">Ahora</button>
               </div>
             </label>
@@ -136,6 +168,8 @@
             <div class="result-actions">
               <span class="zone-ref" id="result-zone"></span>
               <button type="button" class="copy" id="copy-result">Copiar resultado</button>
+              <button type="button" class="copy" id="export-diff">Exportar .ics</button>
+              <button type="button" class="copy" id="favorite-diff">Guardar favorito</button>
             </div>
           </div>
         </section>
@@ -156,13 +190,13 @@
         <section class="panel shift-panel">
           <div class="panel-head">
             <h2>Sumar o restar a una fecha</h2>
-            <span class="panel-note" id="duration-syntax">Sintaxis: 1a · 2mes · 3sem · 4d · 5h · 45min</span>
+            <span class="panel-note" id="duration-syntax">Sintaxis: 1a · 2mes · 3sem · 4d · 5h · 45min · 250ms</span>
           </div>
 
           <div class="shift-row">
             <label class="field">
               <span>Fecha base</span>
-              <input type="datetime-local" id="shift-date" step="60" />
+              <input type="datetime-local" id="shift-date" step="1" />
             </label>
             <label class="field">
               <span>Duración</span>
@@ -174,6 +208,7 @@
             <button type="button" class="example" data-duration="1 mes">1 mes</button>
             <button type="button" class="example" data-duration="3 semanas">3 semanas</button>
             <button type="button" class="example" data-duration="45 min">45 min</button>
+            <button type="button" class="example" data-duration="250 ms">250 ms</button>
             <button type="button" class="example" data-duration="-2 días">−2 días</button>
           </div>
 
@@ -193,7 +228,239 @@
             <div class="shift-result-sub" id="shift-sub"></div>
             <div class="shift-result-actions">
               <button type="button" class="copy" id="copy-shift">Copiar resultado</button>
+              <button type="button" class="copy" id="export-shift">Exportar .ics</button>
             </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel" id="panel-age" role="tabpanel" aria-labelledby="tab-age" tabindex="-1" hidden>
+        <p class="sr-only" id="age-announce" role="status" aria-live="polite"></p>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Edad y cumpleaños</h2>
+            <span class="panel-note">edad exacta y próxima celebración</span>
+          </div>
+
+          <div class="date-row age-row">
+            <label class="field">
+              <span>Fecha de nacimiento</span>
+              <input type="date" id="age-birth" />
+            </label>
+            <div class="date-row-spacer" aria-hidden="true"></div>
+            <label class="field">
+              <span>Calcular a fecha de</span>
+              <input type="date" id="age-at" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <label class="check">
+              <input type="checkbox" id="age-today" checked />
+              <span>Usar hoy como referencia</span>
+            </label>
+            <button type="button" class="primary" id="age-calc">Calcular edad</button>
+          </div>
+
+          <p class="notice" id="age-warning" role="status" hidden></p>
+          <p class="error" id="age-error" role="alert" hidden></p>
+          <p class="shift-empty" id="age-empty">Introduce una fecha de nacimiento para ver la edad y el próximo cumpleaños.</p>
+        </section>
+
+        <section class="result-card feature-result" id="age-result" hidden>
+          <div class="feature-head">
+            <h3>Edad exacta</h3>
+            <span class="feature-note" id="age-reference"></span>
+          </div>
+          <div class="feature-big" id="age-big"></div>
+          <div class="feature-grid" id="age-grid"></div>
+          <div class="feature-actions">
+            <button type="button" class="copy" id="copy-age">Copiar resultado</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel" id="panel-work" role="tabpanel" aria-labelledby="tab-work" tabindex="-1" hidden>
+        <p class="sr-only" id="work-announce" role="status" aria-live="polite"></p>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Días laborables</h2>
+            <span class="panel-note">lunes a viernes, sin festivos</span>
+          </div>
+
+          <div class="date-row">
+            <label class="field">
+              <span>Desde</span>
+              <input type="datetime-local" id="work-start" step="1" />
+            </label>
+            <div class="date-row-spacer" aria-hidden="true"></div>
+            <label class="field">
+              <span>Hasta</span>
+              <input type="datetime-local" id="work-end" step="1" />
+            </label>
+          </div>
+
+          <div class="feature-form-row">
+            <label class="field">
+              <span>País de festivos</span>
+              <select id="work-country"></select>
+            </label>
+            <label class="field field-grow">
+              <span>Festivos sueltos</span>
+              <input type="text" id="work-holidays" placeholder="2026-12-25, 2027-01-06" spellcheck="false" autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="actions">
+            <label class="check">
+              <input type="checkbox" id="work-inclusive" />
+              <span>Contar ambos extremos</span>
+            </label>
+            <button type="button" class="primary" id="work-calc">Contar laborables</button>
+          </div>
+
+          <p class="notice" id="work-warning" role="status" hidden></p>
+          <p class="error" id="work-error" role="alert" hidden></p>
+          <p class="shift-empty" id="work-empty">Elige el rango y el país para contar los días laborables.</p>
+
+          <div class="result-card feature-result" id="work-result" hidden>
+            <div class="feature-head">
+              <h3>Días laborables</h3>
+              <span class="feature-note" id="work-range"></span>
+            </div>
+            <div class="feature-big" id="work-big"></div>
+            <div class="feature-grid" id="work-grid"></div>
+            <div class="holiday-list" id="work-holiday-list"></div>
+            <div class="feature-actions">
+              <button type="button" class="copy" id="copy-work">Copiar resultado</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel feature-panel">
+          <div class="panel-head">
+            <h2>Sumar o restar días laborables</h2>
+            <span class="panel-note">los festivos se saltan</span>
+          </div>
+          <div class="feature-form-row">
+            <label class="field">
+              <span>Fecha base</span>
+              <input type="datetime-local" id="work-base" step="1" />
+            </label>
+            <label class="field field-narrow">
+              <span>Días laborables</span>
+              <input type="number" id="work-days" value="10" min="1" step="1" />
+            </label>
+            <div class="feature-buttons">
+              <button type="button" class="primary" id="work-add">Sumar</button>
+              <button type="button" class="secondary" id="work-sub">Restar</button>
+            </div>
+          </div>
+          <p class="error" id="work-shift-error" role="alert" hidden></p>
+          <div class="shift-result" id="work-shift-result" hidden>
+            <div class="shift-result-label" id="work-shift-op"></div>
+            <div class="shift-result-value" id="work-shift-value"></div>
+            <div class="shift-result-sub" id="work-shift-sub"></div>
+            <div class="shift-result-actions">
+              <button type="button" class="copy" id="copy-work-shift">Copiar resultado</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel" id="panel-convert" role="tabpanel" aria-labelledby="tab-convert" tabindex="-1" hidden>
+        <p class="sr-only" id="convert-announce" role="status" aria-live="polite"></p>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Conversor de zonas</h2>
+            <span class="panel-note">la misma hora en otra ciudad, con DST</span>
+          </div>
+
+          <div class="date-row">
+            <label class="field">
+              <span>Fecha y hora</span>
+              <input type="datetime-local" id="convert-date" step="1" />
+            </label>
+            <div class="date-row-spacer" aria-hidden="true"></div>
+            <label class="field">
+              <span>Desde</span>
+              <select id="convert-from"></select>
+            </label>
+          </div>
+
+          <div class="feature-form-row">
+            <label class="field field-grow">
+              <span>Hasta</span>
+              <select id="convert-to"></select>
+            </label>
+            <div class="feature-buttons">
+              <button type="button" class="secondary" id="convert-swap" title="Intercambiar origen y destino">Intercambiar</button>
+              <button type="button" class="primary" id="convert-run">Convertir</button>
+            </div>
+          </div>
+
+          <p class="notice" id="convert-warning" role="status" hidden></p>
+          <p class="error" id="convert-error" role="alert" hidden></p>
+          <p class="shift-empty" id="convert-empty">Elige una hora y dos zonas para ver el resultado.</p>
+        </section>
+
+        <section class="result-card feature-result" id="convert-result" hidden>
+          <div class="feature-head">
+            <h3>Misma hora, otra zona</h3>
+            <span class="feature-note" id="convert-diff"></span>
+          </div>
+          <div class="convert-line">
+            <div class="convert-side">
+              <span class="micro-label" id="convert-from-label"></span>
+              <strong id="convert-from-value"></strong>
+              <span class="feature-note" id="convert-from-zone"></span>
+            </div>
+            <span class="convert-arrow" aria-hidden="true">→</span>
+            <div class="convert-side convert-side-end">
+              <span class="micro-label" id="convert-to-label"></span>
+              <strong id="convert-to-value"></strong>
+              <span class="feature-note" id="convert-to-zone"></span>
+            </div>
+          </div>
+          <div class="feature-actions">
+            <button type="button" class="copy" id="copy-convert">Copiar resultado</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="tab-panel" id="panel-facts" role="tabpanel" aria-labelledby="tab-facts" tabindex="-1" hidden>
+        <p class="sr-only" id="facts-announce" role="status" aria-live="polite"></p>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Ficha de la fecha</h2>
+            <span class="panel-note">semana ISO, día del año, trimestre y más</span>
+          </div>
+          <div class="feature-form-row">
+            <label class="field field-grow">
+              <span>Fecha</span>
+              <input type="datetime-local" id="facts-date" step="1" />
+            </label>
+            <div class="feature-buttons">
+              <button type="button" class="secondary" id="facts-now">Ahora</button>
+              <button type="button" class="primary" id="facts-run">Ver ficha</button>
+            </div>
+          </div>
+          <p class="error" id="facts-error" role="alert" hidden></p>
+          <p class="shift-empty" id="facts-empty">Elige una fecha para consultar su ficha de calendario.</p>
+        </section>
+
+        <section class="result-card feature-result" id="facts-result" hidden>
+          <div class="feature-head">
+            <h3 id="facts-long"></h3>
+            <span class="feature-note" id="facts-human"></span>
+          </div>
+          <div class="feature-grid" id="facts-grid"></div>
+          <div class="feature-actions">
+            <button type="button" class="copy" id="copy-facts">Copiar ficha</button>
           </div>
         </section>
       </div>
@@ -202,8 +469,20 @@
     <footer>
       <span>Chiquito de la Calzada — homenaje al maestro</span>
       <span id="footer-zone"></span>
+      <span id="app-version"></span>
     </footer>
   </div>
+
+  <dialog class="history-dialog" id="history-dialog">
+    <div class="history-head">
+      <h2>Historial y favoritos</h2>
+      <form method="dialog"><button class="copy" type="submit">Cerrar</button></form>
+    </div>
+    <h3>Favoritos</h3>
+    <div class="history-list" id="favorites-list"></div>
+    <h3>Últimas operaciones</h3>
+    <div class="history-list" id="history-list"></div>
+  </dialog>
 
   <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
 
