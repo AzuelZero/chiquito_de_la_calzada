@@ -3,20 +3,41 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
 )
 
-// TestJarlAudioEmbedded comprueba que el grito viaja dentro del ejecutable.
-func TestJarlAudioEmbedded(t *testing.T) {
-	data, err := assets.ReadFile("frontend/dist/assets/jarl.mp3")
-	if err != nil {
-		t.Fatalf("falta el audio del JARL: %v", err)
+// TestSoundClipsEmbedded comprueba que todos los sonidos viajan dentro del
+// ejecutable y que son MP3 reales, no respuestas HTML del servidor.
+func TestSoundClipsEmbedded(t *testing.T) {
+	clips := []struct {
+		name string
+		min  int
+	}{
+		{"jarl.mp3", 10_000},
+		{"ataque.mp3", 8_000},
+		{"fuego.mp3", 8_000},
+		{"camarero.mp3", 10_000},
+		{"tecuen.mp3", 10_000},
+		{"epetekan.mp3", 12_000},
 	}
-	if len(data) < 10_000 {
-		t.Fatalf("el audio del JARL es demasiado pequeño: %d bytes", len(data))
+	for _, clip := range clips {
+		data, err := assets.ReadFile("frontend/dist/assets/" + clip.name)
+		if err != nil {
+			t.Errorf("falta el audio %s: %v", clip.name, err)
+			continue
+		}
+		if len(data) < clip.min {
+			t.Errorf("%s es demasiado pequeño: %d bytes", clip.name, len(data))
+			continue
+		}
+		if !bytes.HasPrefix(data, []byte("ID3")) {
+			t.Errorf("%s no parece un MP3 (falta la cabecera ID3)", clip.name)
+			continue
+		}
+		sum := sha256.Sum256(data)
+		t.Logf("%s: %d bytes, sha256=%s", clip.name, len(data), hex.EncodeToString(sum[:]))
 	}
-	sum := sha256.Sum256(data)
-	t.Logf("jarl.mp3: %d bytes, sha256=%s", len(data), hex.EncodeToString(sum[:]))
 }

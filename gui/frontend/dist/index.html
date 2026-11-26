@@ -9,6 +9,11 @@
   <link rel="icon" href="assets/logo.png" type="image/png" />
   <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/jarl.mp3" as="audio" type="audio/mpeg" />
+  <link rel="preload" href="assets/ataque.mp3" as="audio" type="audio/mpeg" />
+  <link rel="preload" href="assets/fuego.mp3" as="audio" type="audio/mpeg" />
+  <link rel="preload" href="assets/camarero.mp3" as="audio" type="audio/mpeg" />
+  <link rel="preload" href="assets/tecuen.mp3" as="audio" type="audio/mpeg" />
+  <link rel="preload" href="assets/epetekan.mp3" as="audio" type="audio/mpeg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -23,33 +28,35 @@
       </div>
 
       <div class="top-actions">
-        <label class="zone-picker" title="Zona horaria de los cálculos">
-          <span class="sr-only">Zona horaria</span>
+        <label class="zone-picker" title="Zona horaria que se aplica a todos los cálculos">
+          <span class="sr-only">Zona de cálculo</span>
           <svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M3 12h18M12 3c2.6 2.7 4 5.9 4 9s-1.4 6.3-4 9c-2.6-2.7-4-5.9-4-9s1.4-6.3 4-9Z" />
           </svg>
-          <input id="zone-select" list="zone-list" type="text" spellcheck="false" autocomplete="off" />
+          <input id="zone-select" list="zone-list" type="text" spellcheck="false" autocomplete="off" aria-describedby="zone-error" />
           <datalist id="zone-list"></datalist>
         </label>
-        <label class="zone-mode" title="Qué hacer con las horas escritas al cambiar de zona">
-          <span class="sr-only">Al cambiar de zona</span>
+        <label class="zone-mode" title="Al cambiar la zona de cálculo: conservar la hora escrita o el momento real">
+          <span class="zone-mode-label">Al cambiar</span>
           <select id="zone-mode">
-            <option value="wall">Mantener hora</option>
-            <option value="instant">Conservar instante</option>
+            <option value="wall">hora escrita</option>
+            <option value="instant">momento real</option>
           </select>
         </label>
         <div class="zone" id="zone-chip" title="Zona horaria activa">Hora local</div>
-        <button type="button" class="icon-button" id="sound-toggle" aria-pressed="true" title="Silenciar el ¡JARL!">
+        <button type="button" class="icon-button sound-button" id="sound-toggle" aria-pressed="true" aria-label="Sonido activado, pulsa para silenciar" title="Silenciar los sonidos de Chiquito">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 9v6h4l5 4V5L8 9H4Z" />
             <path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" />
           </svg>
-          <span class="sr-only">Sonido</span>
+          <span class="sound-label">Sonido</span>
         </button>
         <button type="button" class="ghost-button" id="history-open">Historial</button>
       </div>
     </header>
+
+    <p class="zone-error" id="zone-error" role="alert" hidden></p>
 
     <main>
       <div class="tabs" role="tablist" aria-label="Herramientas de cálculo">
@@ -71,7 +78,7 @@
         </button>
         <button class="tab" id="tab-convert" type="button" role="tab" aria-selected="false" aria-controls="panel-convert" tabindex="-1">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M8 5c2 2 3 4.5 3 7s-1 5-3 7M16 5c-2 2-3 4.5-3 7s1 5 3 7" /></svg>
-          Zonas
+          Conversor
         </button>
         <button class="tab" id="tab-facts" type="button" role="tab" aria-selected="false" aria-controls="panel-facts" tabindex="-1">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 9h16M8 13h3M13 13h3M8 17h3" /></svg>
@@ -125,7 +132,7 @@
           <p class="error" id="diff-error" role="alert" hidden></p>
         </section>
 
-        <section class="result-card" id="diff-result" hidden>
+        <section class="result-card" id="diff-result" tabindex="-1" hidden>
           <div class="result-head">
             <div>
               <h3>Días naturales</h3>
@@ -220,7 +227,7 @@
           <p class="notice" id="shift-warning" role="status" hidden></p>
           <p class="error" id="shift-error" role="alert" hidden></p>
 
-          <p class="shift-empty" id="shift-empty">Elige una fecha y una duración. El resultado aparecerá aquí.</p>
+          <p class="shift-empty" id="shift-empty">Pulsa Sumar o Restar para ver el resultado.</p>
 
           <div class="shift-result" id="shift-result" hidden>
             <div class="shift-result-label" id="shift-op"></div>
@@ -239,8 +246,8 @@
 
         <section class="panel">
           <div class="panel-head">
-            <h2>Edad y cumpleaños</h2>
-            <span class="panel-note">edad exacta y próxima celebración</span>
+            <h2>Edad y días de vida</h2>
+            <span class="panel-note">edad exacta, días vividos y próxima celebración</span>
           </div>
 
           <div class="date-row age-row">
@@ -250,27 +257,27 @@
             </label>
             <div class="date-row-spacer" aria-hidden="true"></div>
             <label class="field">
-              <span>Calcular a fecha de</span>
-              <input type="date" id="age-at" />
+              <span>Días de vida hasta</span>
+              <div class="date-wrap date-action">
+                <input type="date" id="age-at" />
+                <button type="button" class="ghost" id="age-now" title="Usar la fecha de hoy">Hoy</button>
+              </div>
             </label>
           </div>
 
           <div class="actions">
-            <label class="check">
-              <input type="checkbox" id="age-today" checked />
-              <span>Usar hoy como referencia</span>
-            </label>
-            <button type="button" class="primary" id="age-calc">Calcular edad</button>
+            <span class="check-note">la edad exacta y el próximo cumpleaños aparecen en el resultado</span>
+            <button type="button" class="primary" id="age-calc">Calcular días de vida</button>
           </div>
 
           <p class="notice" id="age-warning" role="status" hidden></p>
           <p class="error" id="age-error" role="alert" hidden></p>
-          <p class="shift-empty" id="age-empty">Introduce una fecha de nacimiento para ver la edad y el próximo cumpleaños.</p>
+          <p class="shift-empty" id="age-empty">Introduce una fecha de nacimiento para ver los días de vida, la edad exacta y el próximo cumpleaños.</p>
         </section>
 
-        <section class="result-card feature-result" id="age-result" hidden>
+        <section class="result-card feature-result" id="age-result" tabindex="-1" hidden>
           <div class="feature-head">
-            <h3>Edad exacta</h3>
+            <h3>Días de vida</h3>
             <span class="feature-note" id="age-reference"></span>
           </div>
           <div class="feature-big" id="age-big"></div>
@@ -325,7 +332,7 @@
           <p class="error" id="work-error" role="alert" hidden></p>
           <p class="shift-empty" id="work-empty">Elige el rango y el país para contar los días laborables.</p>
 
-          <div class="result-card feature-result" id="work-result" hidden>
+          <div class="result-card feature-result" id="work-result" tabindex="-1" hidden>
             <div class="feature-head">
               <h3>Días laborables</h3>
               <span class="feature-note" id="work-range"></span>
@@ -359,7 +366,7 @@
             </div>
           </div>
           <p class="error" id="work-shift-error" role="alert" hidden></p>
-          <div class="shift-result" id="work-shift-result" hidden>
+          <div class="shift-result" id="work-shift-result" role="status" aria-live="polite" hidden>
             <div class="shift-result-label" id="work-shift-op"></div>
             <div class="shift-result-value" id="work-shift-value"></div>
             <div class="shift-result-sub" id="work-shift-sub"></div>
@@ -376,7 +383,7 @@
         <section class="panel">
           <div class="panel-head">
             <h2>Conversor de zonas</h2>
-            <span class="panel-note">la misma hora en otra ciudad, con DST</span>
+            <span class="panel-note">la misma hora en otra ciudad, con DST · independiente de la zona de cálculo de la cabecera</span>
           </div>
 
           <div class="date-row">
@@ -407,7 +414,7 @@
           <p class="shift-empty" id="convert-empty">Elige una hora y dos zonas para ver el resultado.</p>
         </section>
 
-        <section class="result-card feature-result" id="convert-result" hidden>
+        <section class="result-card feature-result" id="convert-result" tabindex="-1" hidden>
           <div class="feature-head">
             <h3>Misma hora, otra zona</h3>
             <span class="feature-note" id="convert-diff"></span>
@@ -453,12 +460,12 @@
           <p class="shift-empty" id="facts-empty">Elige una fecha para consultar su ficha de calendario.</p>
         </section>
 
-        <section class="result-card feature-result" id="facts-result" hidden>
+        <section class="result-card feature-result" id="facts-result" tabindex="-1" hidden>
           <div class="feature-head">
             <h3 id="facts-long"></h3>
             <span class="feature-note" id="facts-human"></span>
           </div>
-          <div class="feature-grid" id="facts-grid"></div>
+          <div class="feature-grid facts-grid" id="facts-grid"></div>
           <div class="feature-actions">
             <button type="button" class="copy" id="copy-facts">Copiar ficha</button>
           </div>
@@ -472,6 +479,8 @@
       <span id="app-version"></span>
     </footer>
   </div>
+
+  <div class="catchphrase" id="catchphrase" aria-hidden="true"></div>
 
   <dialog class="history-dialog" id="history-dialog">
     <div class="history-head">

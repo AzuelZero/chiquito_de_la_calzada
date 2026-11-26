@@ -40,6 +40,9 @@ func TestAgeAt(t *testing.T) {
 	if !got.IsBirthday || got.Turning != 26 || got.DaysToNext != 0 {
 		t.Errorf("cumpleaños = %+v", got)
 	}
+	if got.TotalDays != 9496 {
+		t.Errorf("TotalDays = %d, quiero 9496", got.TotalDays)
+	}
 	if !got.LeapDayAdjustment {
 		t.Error("esperaba el ajuste de 29 de febrero")
 	}

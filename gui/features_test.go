@@ -38,6 +38,9 @@ func TestAgeMethod(t *testing.T) {
 	if !got.IsBirthday || !got.LeapDayAdjustment || got.Turning != 26 {
 		t.Errorf("Age = %+v", got)
 	}
+	if got.TotalDays != 9496 {
+		t.Errorf("TotalDays = %d, quiero 9496", got.TotalDays)
+	}
 	if !strings.Contains(got.Warning, "29 de febrero") {
 		t.Errorf("Warning = %q", got.Warning)
 	}

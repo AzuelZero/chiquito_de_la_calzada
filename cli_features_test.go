@@ -35,7 +35,7 @@ func TestListZonesFlag(t *testing.T) {
 
 func TestAgeCommand(t *testing.T) {
 	out := runText(t, "--utc", "age", "2000-02-29", "2026-02-28")
-	for _, want := range []string{"Edad: 26 años, 0 meses y 0 días", "¡Hoy cumple 26 años!", "29 de febrero"} {
+	for _, want := range []string{"Edad: 26 años, 0 meses y 0 días", "Días de vida: 9.496 (1.356 semanas y 4 días)", "¡Hoy cumple 26 años!", "29 de febrero"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("la salida no contiene %q:\n%s", want, out)
 		}

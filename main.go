@@ -642,8 +642,15 @@ func printAge(w io.Writer, birthStr, atStr string, opts options, loc *time.Locat
 
 	fmt.Fprintf(w, "Nacimiento: %s\n", humanDate(birth))
 	fmt.Fprintf(w, "Referencia: %s\n\n", humanDate(at))
-	fmt.Fprintf(w, "Edad: %d años, %d meses y %d días (%s días en total)\n",
-		age.Years, age.Months, age.Days, datecore.FormatInt(age.TotalDays))
+	weeks := age.TotalDays / 7
+	rest := age.TotalDays % 7
+	restWord := "días"
+	if rest == 1 {
+		restWord = "día"
+	}
+	fmt.Fprintf(w, "Edad: %d años, %d meses y %d días\n", age.Years, age.Months, age.Days)
+	fmt.Fprintf(w, "Días de vida: %s (%s semanas y %s %s)\n",
+		datecore.FormatInt(age.TotalDays), datecore.FormatInt(weeks), datecore.FormatInt(rest), restWord)
 	if age.IsBirthday {
 		fmt.Fprintf(w, "¡Hoy cumple %d años!\n", age.Turning)
 	} else {

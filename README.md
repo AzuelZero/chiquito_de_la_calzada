@@ -24,8 +24,10 @@ conexión a internet.
   magnitud y el resto queda plegado.
 - **Sumar o restar** una duración a una fecha base, con resultado legible e
   ISO 8601.
-- **Edad y cumpleaños**: edad exacta, días vividos y próxima celebración, con
-  ajuste especial para los nacidos el 29 de febrero.
+- **Edad y días de vida**: los días vividos son el número principal (con su
+  equivalente en semanas), la edad exacta pasa al detalle, y se añaden la próxima
+  celebración y el ajuste especial para los nacidos el 29 de febrero. La fecha
+  de referencia puede ser hoy o cualquier otro día.
 - **Días laborables**: cuenta de lunes a viernes entre dos fechas, con packs de
   festivos de España, México, Colombia y Argentina, festivos sueltos y suma o
   resta de días laborables.
@@ -47,15 +49,19 @@ no necesita instalación. WebView2 suele venir con Windows y, si falta, Windows 
 ofrece al arrancar la aplicación.
 
 La ventana mide 1000 × 760 y se puede redimensionar. Tiene seis pestañas:
-**Diferencia**, **Sumar o restar**, **Edad**, **Laborables**, **Zonas** y
+**Diferencia**, **Sumar o restar**, **Edad**, **Laborables**, **Conversor** y
 **Ficha**.
 
-- El selector superior busca entre todas las zonas IANA por ciudad o identificador.
-  La pastilla de al lado muestra la abreviatura y el offset actuales
+- El selector superior es la **zona de cálculo**: se aplica a todas las fechas
+  de la app. La pastilla de al lado muestra la abreviatura y el offset actuales
   (`CET · UTC+01:00`, `CEST · UTC+02:00`…).
-- El selector **Mantener hora / Conservar instante** decide qué pasa con las horas
-  escritas al cambiar de zona: conservar la hora de pared o conservar el instante
-  real.
+- El selector **Al cambiar: hora escrita / momento real** decide qué pasa con
+  las horas al cambiar la zona de cálculo: conservar la hora de pared o
+  conservar el instante real. Si escribes una zona desconocida, el error se
+  queda bajo la cabecera hasta que la corrijas.
+- La pestaña **Conversor** es independiente del ajuste anterior: sirve para ver
+  la misma hora en otra ciudad y avisa de las horas inexistentes o repetidas por
+  el cambio de hora.
 - Al abrir se calculan los últimos 30 días como ejemplo.
 - La fecha y la hora se interpretan en la zona elegida, no en la del navegador.
 - El botón «Ahora» usa la hora real de esa zona.
@@ -65,9 +71,13 @@ La ventana mide 1000 × 760 y se puede redimensionar. Tiene seis pestañas:
   «Ver todas las unidades» despliega las demás.
 - En «Sumar o restar», Enter repite la última operación usada y el resultado
   también se puede copiar.
-- Al intercambiar las dos fechas… **¡JARL!**, con el grito real de Chiquito
-  incluido en la app. El audio viaja dentro del ejecutable: no necesita
-  conexión. El botón del altavoz lo silencia y recuerda la elección.
+- Los sonidos reales de Chiquito acompañan las acciones explícitas: **¡JARL!**
+  al intercambiar fechas o activar el sonido, **¡Al ataque!** en las sumas y los
+  días laborables, **¡Fuegorrrlll!** al calcular los días de vida, **¡Epetekan!**
+  al convertir zonas, **¿Te das cuen?** en la ficha y **¡Camarerooorrrlll!** al
+  copiar o guardar. Los errores de validación nunca suenan. El audio viaja dentro
+  del ejecutable: no necesita conexión. El botón «Sonido» silencia todos los
+  sonidos y recuerda la elección.
 - El botón **Historial** guarda las últimas operaciones y permite fijar
   diferencias como favoritas para recuperarlas con un clic.
 - **Exportar .ics** abre el diálogo nativo de Windows y guarda un evento de
@@ -166,7 +176,7 @@ chiquito_de_la_calzada_cli diff 2026-01-01 2026-03-15 --json
 chiquito_de_la_calzada_cli add 2026-01-31 "1 mes"        # 28/02/2026
 chiquito_de_la_calzada_cli sub "2026-03-15 18:00" 45min
 
-# Edad exacta y próximo cumpleaños
+# Edad exacta, días de vida y próximo cumpleaños
 chiquito_de_la_calzada_cli age 1990-06-15
 
 # Días laborables en España, con un festivo extra
@@ -349,10 +359,15 @@ repositorio, con permiso de escritura sobre las releases.
 
 - **Logo:** fotografía propia. La comparativa con las propuestas vectoriales
   está en `assets/propuestas/`.
-- **Sonido:** el conocido grito gutural de Chiquito de la Calzada, tomado de
-  [Tonos Móvil](https://tonosmovil.net/chiquito-de-la-calzada-grito/);
-  normalizado y recortado para la animación. Se incluye como cita breve de
-  homenaje. Los derechos sobre la voz y la grabación pertenecen a sus
+- **Sonidos:** varias citas breves de Chiquito de la Calzada tomadas de Tonos
+  Móvil: [el grito](https://tonosmovil.net/chiquito-de-la-calzada-grito/),
+  [al ataque](https://tonosmovil.net/chiquito-de-la-calzada-al-ataque/),
+  [fuego](https://tonosmovil.net/chiquito-de-la-calzada-fuegorrrlll/),
+  [camarero](https://tonosmovil.net/chiquito-de-la-calzada-camarerorrrlll/),
+  [¿te das cuen?](https://tonosmovil.net/chiquito-de-la-calzada-te-das-cuen/) y
+  [epetekan](https://tonosmovil.net/chiquito-epetekan/).
+  Están recortados y normalizados para la interfaz. Se incluyen como cita breve
+  de homenaje; los derechos sobre la voz y las grabaciones pertenecen a sus
   titulares.
 - **Fraunces:** tipografía de Undercase Type, bajo SIL Open Font License 1.1.
   La licencia está en

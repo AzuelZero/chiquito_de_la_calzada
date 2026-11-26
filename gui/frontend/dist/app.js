@@ -97,6 +97,15 @@ function reveal(el) {
   el.classList.add("reveal");
 }
 
+// Lleva el resultado a la vista solo cuando el usuario acaba de pedirlo y la
+// tarjeta no está ya visible (por ejemplo, a 720×600).
+function revealResult(el) {
+  const rect = el.getBoundingClientRect();
+  if (rect.top >= 0 && rect.top < window.innerHeight - 80) return;
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+}
+
 function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -157,7 +166,6 @@ function collectState() {
     shiftDuration: $("shift-duration").value,
     ageBirth: $("age-birth").value,
     ageAt: $("age-at").value,
-    ageToday: $("age-today").checked,
     workStart: $("work-start").value,
     workEnd: $("work-end").value,
     workBase: $("work-base").value,
@@ -207,7 +215,6 @@ function restoreState() {
   }
   $("inclusive").checked = Boolean(s.inclusive);
   $("work-inclusive").checked = Boolean(s.workInclusive);
-  $("age-today").checked = s.ageToday !== false;
   for (const name of tabNames) {
     if (s.tab === name) currentTab = name;
   }
@@ -321,9 +328,7 @@ function useEntry(entry) {
       break;
     case "age":
       $("age-birth").value = entry.data.birth || "";
-      $("age-at").value = entry.data.at || "";
-      $("age-today").checked = !entry.data.at;
-      $("age-at").disabled = $("age-today").checked;
+      $("age-at").value = entry.data.at || $("age-at").value;
       if (entry.zone) applyZoneSelection(entry.zone, false);
       activateTab("age", false, false);
       updateZone().then(() => calcAge(false));
@@ -455,14 +460,22 @@ function resolveZoneText(text) {
   return null;
 }
 
-function flashZoneError() {
-  const chip = $("zone-chip");
-  chip.textContent = "Zona no válida";
-  chip.classList.add("is-invalid");
-  setTimeout(() => {
-    chip.classList.remove("is-invalid");
-    updateZone().catch(() => {});
-  }, 1600);
+function showZoneError() {
+  const input = $("zone-select");
+  input.setAttribute("aria-invalid", "true");
+  $("zone-chip").textContent = "Zona no válida";
+  $("zone-chip").classList.add("is-invalid");
+  const error = $("zone-error");
+  error.textContent = "Zona no válida. Prueba con «Madrid», «Europe/Madrid», «Bogotá» o «UTC».";
+  error.hidden = false;
+}
+
+function clearZoneError() {
+  $("zone-select").removeAttribute("aria-invalid");
+  const error = $("zone-error");
+  error.hidden = true;
+  error.textContent = "";
+  $("zone-chip").classList.remove("is-invalid");
 }
 
 async function loadZones() {
@@ -516,7 +529,7 @@ async function updateZone() {
       ? `Hora local · ${state.text}`
       : `${state.id} · ${state.text}${state.dst ? " · horario de verano" : ""}`;
   $("zone-chip").classList.toggle("is-dst", state.dst);
-  $("zone-chip").classList.remove("is-invalid");
+  clearZoneError();
   $("footer-zone").textContent = zoneText;
   $("result-zone").textContent = hasDiff ? state.text : "";
   const note = $("panel-zone");
@@ -560,6 +573,7 @@ async function changeZone(id) {
   } catch (err) {
     zone = old;
     $("zone-select").value = zoneDisplay(old);
+    showZoneError();
     showError(currentTab === "shift" ? "shift-error" : "diff-error", cleanError(err));
     return;
   }
@@ -796,6 +810,7 @@ async function copyWithFeedback(button, text, okText = "Copiado") {
     button.textContent = okText;
     button.classList.add("is-copied");
     setCopyStatus("Resultado copiado al portapapeles.");
+    chiquito("camarero");
   } catch {
     button.textContent = "No se pudo copiar";
     setCopyStatus("No se pudo copiar el resultado.");
@@ -814,6 +829,7 @@ async function saveICS(ics, button) {
     if (path) {
       button.textContent = "Guardado";
       setCopyStatus(`Evento guardado en ${path}`);
+      chiquito("camarero");
     } else {
       setCopyStatus("Guardado cancelado.");
     }
@@ -865,6 +881,8 @@ async function calcDiff(record = false) {
     const result = await api().Diff(date1, date2, zone, $("inclusive").checked);
     renderDiff(result);
     if (record) {
+      chiquito("grito");
+      revealResult($("diff-result"));
       pushHistory({
         kind: "diff",
         label: `${nf.format(result.naturalDays)} días · ${result.human1.split(" (")[0]} → ${result.human2.split(" (")[0]}`,
@@ -965,6 +983,8 @@ async function doShift(operation, record = false) {
     lastOperation = operation;
     renderShift(result);
     if (record) {
+      chiquito("ataque");
+      revealResult($("shift-result"));
       pushHistory({
         kind: "shift",
         label: `${capitalize(result.operation)} ${result.duration} · ${result.resultHuman.split(" (")[0]}`,
@@ -1001,41 +1021,71 @@ async function exportShift() {
 
 // ------------------------------------------------------------------------ edad
 
+function lifeDaysBreakdown(totalDays) {
+  const days = Number(totalDays);
+  const weeks = Math.floor(days / 7);
+  const rest = days % 7;
+  return `${nf0.format(weeks)} semanas y ${rest} ${rest === 1 ? "día" : "días"}`;
+}
+
 function renderAge(result) {
   lastAge = result;
-  $("age-big").textContent = result.human;
-  $("age-reference").textContent = $("age-today").checked ? "referencia: hoy" : `referencia: ${$("age-at").value}`;
+  const totalDays = Number(result.totalDays);
+  const weeks = Math.floor(totalDays / 7);
+  const rest = totalDays % 7;
+  const until = $("age-at").value;
+  $("age-big").textContent = `${nf0.format(totalDays)} días`;
+  $("age-reference").textContent = until ? `hasta ${formatDateShort(until)}` : "hasta hoy";
   const grid = $("age-grid");
   grid.replaceChildren();
   const entries = [
-    ["Días vividos", nf0.format(result.totalDays)],
-    ["Próximo cumpleaños", result.nextBirthday],
-    ["Día de la semana", capitalize(result.nextWeekday)],
-    ["Cumplirá", `${result.turning} años`],
-    [result.isBirthday ? "Hoy" : "Faltan", result.isBirthday ? "¡Felicidades!" : `${nf0.format(result.daysToNext)} días`],
+    { label: "Edad exacta", value: result.human },
+    { label: "Semanas vividas", value: `${nf0.format(weeks)} semanas`, sub: `${rest} ${rest === 1 ? "día" : "días"} más` },
+    {
+      label: "Próximo cumpleaños",
+      value: result.nextBirthday,
+      sub: `${capitalize(result.nextWeekday)} · cumplirá ${result.turning}`,
+    },
+    {
+      label: result.isBirthday ? "Hoy" : "Faltan",
+      value: result.isBirthday ? "¡Felicidades!" : `${nf0.format(result.daysToNext)} días`,
+    },
   ];
-  for (const [label, value] of entries) {
+  for (const entry of entries) {
     const cell = document.createElement("div");
     cell.className = "feature-cell";
     const l = document.createElement("span");
     l.className = "feature-cell-label";
-    l.textContent = label;
+    l.textContent = entry.label;
     const v = document.createElement("strong");
     v.className = "feature-cell-value";
-    v.textContent = value;
+    v.textContent = entry.value;
     cell.append(l, v);
+    if (entry.sub) {
+      const sub = document.createElement("span");
+      sub.className = "feature-cell-sub";
+      sub.textContent = entry.sub;
+      cell.append(sub);
+    }
     grid.append(cell);
   }
   renderWarning("age-warning", result.warning);
   announce(
     "age-announce",
-    `${result.years} años, ${result.months} meses y ${result.days} días. ` +
+    `${nf0.format(totalDays)} días de vida. ` +
+      `${result.years} años, ${result.months} meses y ${result.days} días. ` +
       (result.isBirthday
         ? `Hoy cumple ${result.turning} años.`
         : `Próximo cumpleaños: ${result.nextBirthday}, dentro de ${result.daysToNext} días.`)
   );
   $("age-empty").hidden = true;
   reveal($("age-result"));
+}
+
+function formatDateShort(value) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${Number(day)}/${Number(month)}/${year}`;
 }
 
 async function calcAge(record = false) {
@@ -1048,9 +1098,9 @@ async function calcAge(record = false) {
     showError("age-error", "Introduce la fecha de nacimiento.");
     return;
   }
-  const at = $("age-today").checked ? "" : $("age-at").value;
-  if (!at && !$("age-today").checked) {
-    showError("age-error", "Elige una fecha de referencia o marca «Usar hoy».");
+  const at = $("age-at").value;
+  if (!at) {
+    showError("age-error", "Elige hasta qué fecha contar los días de vida o pulsa «Hoy».");
     return;
   }
 
@@ -1061,9 +1111,11 @@ async function calcAge(record = false) {
     const result = await api().Age(birth, at, zone);
     renderAge(result);
     if (record) {
+      chiquito("fuego");
+      revealResult($("age-result"));
       pushHistory({
         kind: "age",
-        label: `${result.years} años, ${result.months} meses y ${result.days} días`,
+        label: `${nf0.format(result.totalDays)} días de vida · ${result.human}`,
         zone,
         data: { birth, at },
       });
@@ -1072,14 +1124,26 @@ async function calcAge(record = false) {
     showError("age-error", cleanError(err));
   } finally {
     button.disabled = false;
-    button.textContent = "Calcular edad";
+    button.textContent = "Calcular días de vida";
     saveState();
   }
 }
 
+async function setAgeToday() {
+  try {
+    const now = await api().Now(zone);
+    $("age-at").value = now.slice(0, 10);
+    clearError("age-error");
+    if ($("age-birth").value) calcAge(false);
+    saveState();
+  } catch (err) {
+    showError("age-error", cleanError(err));
+  }
+}
+
 function buildAgeText(result) {
-  const parts = [`Edad: ${result.human}.`];
-  parts.push(`Días vividos: ${nf0.format(result.totalDays)}.`);
+  const parts = [`Días de vida: ${nf0.format(result.totalDays)} (${lifeDaysBreakdown(result.totalDays)}).`];
+  parts.push(`Edad exacta: ${result.human}.`);
   parts.push(
     result.isBirthday
       ? `Hoy cumple ${result.turning} años.`
@@ -1191,6 +1255,8 @@ async function calcWork(record = false) {
     );
     renderWork(result);
     if (record) {
+      chiquito("ataque");
+      revealResult($("work-result"));
       pushHistory({
         kind: "work",
         label: `${result.workdays} laborables · ${result.startHuman.split(" (")[0]} → ${result.endHuman.split(" (")[0]}`,
@@ -1252,6 +1318,8 @@ async function doWorkShift(operation, record = false) {
     );
     renderWorkShift(result);
     if (record) {
+      chiquito("ataque");
+      revealResult($("work-shift-result"));
       pushHistory({
         kind: "workadd",
         label: `${capitalize(result.operation)} ${result.workdays} laborables · ${result.resultHuman.split(" (")[0]}`,
@@ -1322,6 +1390,8 @@ async function runConvert(record = false) {
     const result = await api().Convert(date, $("convert-from").value, $("convert-to").value);
     renderConvert(result);
     if (record) {
+      chiquito("epetekan");
+      revealResult($("convert-result"));
       pushHistory({
         kind: "convert",
         label: `${result.fromHuman.split(" (")[0]} · ${$("convert-from").value} → ${$("convert-to").value}`,
@@ -1400,6 +1470,8 @@ async function runFacts(record = false) {
     const result = await api().Facts($("facts-date").value, zone);
     renderFacts(result);
     if (record) {
+      chiquito("tecuen");
+      revealResult($("facts-result"));
       pushHistory({
         kind: "facts",
         label: result.long,
@@ -1432,48 +1504,67 @@ function buildFactsText(result) {
     .join("\n");
 }
 
-// ----------------------------------------------------------------------- JARL
+// ------------------------------------------------------------------ sonidos
 
-let jarlAudio = (() => {
+const SOUND_CLIPS = {
+  grito: { src: "assets/jarl.mp3", text: "¡JARL!" },
+  ataque: { src: "assets/ataque.mp3", text: "¡Al ataque!" },
+  fuego: { src: "assets/fuego.mp3", text: "¡Fuegorrrlll!" },
+  camarero: { src: "assets/camarero.mp3", text: "¡Camarerooorrrlll!" },
+  tecuen: { src: "assets/tecuen.mp3", text: "¿Te das cuen?" },
+  epetekan: { src: "assets/epetekan.mp3", text: "¡Epetekan!" },
+};
+
+const soundPlayers = new Map();
+
+function soundPlayer(name) {
+  if (soundPlayers.has(name)) return soundPlayers.get(name);
+  const clip = SOUND_CLIPS[name];
+  if (!clip) return null;
   try {
-    const audio = new Audio("assets/jarl.mp3");
+    const audio = new Audio(clip.src);
     audio.preload = "auto";
     audio.volume = 0.9;
+    soundPlayers.set(name, audio);
     return audio;
   } catch {
     return null;
   }
-})();
+}
 
-function jarl() {
-  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!reduced) {
-    document.querySelector(".jarl")?.remove();
-    const el = document.createElement("span");
-    el.className = "jarl";
-    el.textContent = "¡JARL!";
-    el.setAttribute("aria-hidden", "true");
-    document.querySelector(".date-row").append(el);
-    setTimeout(() => el.remove(), 950);
+function chiquito(name) {
+  const clip = SOUND_CLIPS[name];
+  if (!clip) return;
+
+  const caption = $("catchphrase");
+  if (caption) {
+    caption.textContent = clip.text;
+    caption.classList.remove("is-on");
+    void caption.offsetWidth;
+    caption.classList.add("is-on");
+    clearTimeout(caption._timer);
+    caption._timer = setTimeout(() => caption.classList.remove("is-on"), 1250);
   }
+
   if (!soundEnabled) return;
+  const audio = soundPlayer(name);
+  if (!audio) return;
   try {
-    if (!jarlAudio) {
-      jarlAudio = new Audio("assets/jarl.mp3");
-      jarlAudio.preload = "auto";
-      jarlAudio.volume = 0.9;
-    }
-    jarlAudio.currentTime = 0;
-    jarlAudio.play().catch(() => {});
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
   } catch {
-    // Sin audio disponible: el JARL visual basta.
+    // Sin audio disponible: el texto en pantalla sigue siendo el aviso.
   }
 }
 
 function renderSound() {
   const button = $("sound-toggle");
   button.setAttribute("aria-pressed", String(soundEnabled));
-  button.title = soundEnabled ? "Silenciar el ¡JARL!" : "Activar el sonido del ¡JARL!";
+  button.setAttribute(
+    "aria-label",
+    soundEnabled ? "Sonido activado, pulsa para silenciar" : "Sonido silenciado, pulsa para activar"
+  );
+  button.title = soundEnabled ? "Silenciar los sonidos de Chiquito" : "Activar los sonidos de Chiquito";
   button.classList.toggle("is-muted", !soundEnabled);
 }
 
@@ -1553,8 +1644,6 @@ async function setupDefaults() {
   if (!$("convert-to").value) {
     $("convert-to").value = zonesById.has("America/Bogota") ? "America/Bogota" : "UTC";
   }
-
-  $("age-at").disabled = $("age-today").checked;
 }
 
 function wireEvents() {
@@ -1585,7 +1674,7 @@ function wireEvents() {
     const first = $("date1").value;
     $("date1").value = $("date2").value;
     $("date2").value = first;
-    jarl();
+    chiquito("grito");
     if (hasDiff) calcDiff(false);
     saveState();
   });
@@ -1607,17 +1696,21 @@ function wireEvents() {
     soundEnabled = !soundEnabled;
     renderSound();
     saveState();
-    if (soundEnabled) jarl();
+    if (soundEnabled) chiquito("grito");
   });
 
   $("zone-select").addEventListener("change", async () => {
     const id = resolveZoneText($("zone-select").value);
     if (!id) {
-      $("zone-select").value = zoneDisplay(zone);
-      flashZoneError();
+      showZoneError();
+      $("zone-select").focus();
       return;
     }
+    clearZoneError();
     await changeZone(id);
+  });
+  $("zone-select").addEventListener("input", () => {
+    if (!$("zone-error").hidden) clearZoneError();
   });
   $("zone-select").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -1658,12 +1751,8 @@ function wireEvents() {
     });
   }
 
-  $("age-today").addEventListener("change", () => {
-    $("age-at").disabled = $("age-today").checked;
-    saveState();
-    if ($("age-birth").value) calcAge(false);
-  });
   $("age-calc").addEventListener("click", () => calcAge(true));
+  $("age-now").addEventListener("click", setAgeToday);
   for (const id of ["age-birth", "age-at"]) {
     $(id).addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -1697,7 +1786,7 @@ function wireEvents() {
 
   const allIds = [
     "inclusive", "date1", "date2", "shift-date", "shift-duration",
-    "age-birth", "age-at", "age-today", "work-start", "work-end", "work-base",
+    "age-birth", "age-at", "work-start", "work-end", "work-base",
     "work-days", "work-country", "work-holidays", "work-inclusive",
     "convert-date", "convert-from", "convert-to", "facts-date",
   ];
